@@ -77,7 +77,7 @@ app.whenReady().then(async()=>{
  if(windowIcon.isEmpty())throw Error('原版窗口图标读取失败');
  win=new BrowserWindow({...bounds,minWidth:1000,minHeight:680,show:false,backgroundColor:'#f7f7f6',title:'巡检缺陷工具',icon:windowIcon,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,backgroundThrottling:false}});
  win.setIcon(windowIcon);
- if(process.platform==='win32')win.setAppDetails({appId:'local.xunjian.desktop',appIconPath:process.execPath,appIconIndex:0,relaunchCommand:'\"'+process.execPath+'\"',relaunchDisplayName:'巡检缺陷工具'});
+ // Use the process AppUserModelID and normal executable/shortcut icon resolution; no window-level relaunch overrides.
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',(e,url)=>{if(url!==entry)e.preventDefault();});
  win.webContents.session.setPermissionRequestHandler((_webContents,_permission,callback)=>callback(false));
  win.webContents.on('will-prevent-unload',event=>{if(allowClose)event.preventDefault();});
