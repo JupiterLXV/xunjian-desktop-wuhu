@@ -1,0 +1,8 @@
+{
+  "name": "xunjian-desktop",
+  "version": "50.3.1",
+  "description": "巡检缺陷命名分类工具桌面版",
+  "author": "Xunjian Desktop",
+  "private": true,
+  "main": "app/main.cjs"
+}

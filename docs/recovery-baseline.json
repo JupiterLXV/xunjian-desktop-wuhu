@@ -1,0 +1,9 @@
+{
+  "source": "user-provided app.asar",
+  "sha256": "be8474475dff5d8866782b9722ad347f725178dfad268d9f0cd8bb3c415a1a7f",
+  "applicationVersion": "50.3.1",
+  "extractionTool": "@electron/asar 4.3.4",
+  "originalElectronVersion": null,
+  "originalBuildConfig": null,
+  "originalLockfile": null
+}
