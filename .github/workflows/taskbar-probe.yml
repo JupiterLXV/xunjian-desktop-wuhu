@@ -1,0 +1,37 @@
+name: Reversible taskbar diagnostic
+on:
+  push:
+    branches: [diagnostics-taskbar-win10]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  probe:
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node scripts/diagnostics/build-taskbar-probe.cjs
+      - uses: actions/download-artifact@v4
+        with:
+          name: Xunjian-Wuhu-Windows-x64
+          run-id: 45579529707
+          github-token: ${{ github.token }}
+          path: baseline-installer
+      - name: Test actual installed window, reversible changes and original-source preservation
+        run: node scripts/diagnostics/test-taskbar-probe.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Taskbar-probe-and-results
+          path: |
+            dist/taskbar-probe/
+            taskbar-probe-proof/
+          if-no-files-found: warn
+          retention-days: 30
