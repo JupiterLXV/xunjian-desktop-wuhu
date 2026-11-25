@@ -192,9 +192,10 @@ test('50.4.1: restored old directory handles retain ancestors and background syn
   await draw(page,500,500,950,950);await choose(page);
   await f.app.evaluate(()=>{const service=global.testService,original=service.call.bind(service);let armed=true;service.call=async(op,args)=>{if(armed&&op==='snapshot'){armed=false;await new Promise(resolve=>{global.releaseSnapshot=resolve;});}return original(op,args);};});
   const refreshing=page.evaluate(()=>XunjianDesktop.refresh(true));
+  refreshing.catch(()=>{}); // Preserve the original assertion if cleanup closes a pending evaluation.
   await page.waitForFunction(()=>document.body.classList.contains('io-busy'));
   await expect(page.locator('#btnBottomSave')).toBeDisabled();await expect(page.locator('#btnBottomSave')).toContainText('同步');
-  await f.app.evaluate(()=>global.releaseSnapshot());await refreshing;
+  await f.app.evaluate(async()=>{const until=Date.now()+10000;while(typeof global.releaseSnapshot!=='function'){if(Date.now()>until)throw Error('Synthetic snapshot pause was not reached');await new Promise(r=>setTimeout(r,10));}global.releaseSnapshot();});await refreshing;
   await expect(page.locator('#btnBottomSave')).toBeEnabled();await page.locator('#btnBottomSave').click();
   await page.waitForFunction(()=>__test62.busyDetail().queue.completed===1&&!XunjianDesktop.busy());
   expect((await fs.readdir(f.output)).filter(n=>!n.startsWith('.')).sort()).toEqual(['原图','大图','小图']);expect(f.errors).toEqual([]);
