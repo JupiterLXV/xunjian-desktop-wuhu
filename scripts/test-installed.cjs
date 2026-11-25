@@ -3,7 +3,7 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
 const {_electron}=require('@playwright/test');
 (async()=>{
  if(process.platform!=='win32')throw Error('Installed EXE testing requires Windows');
- const dir=await fs.mkdtemp(path.join(os.tmpdir(),'xj-installed-')),install=path.join(dir,'program');
+ const dir=await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(),'xj-installed-'))),install=path.join(dir,'program');
  const exe=(await fs.readdir('dist')).find(n=>n==='Xunjian-Wuhu-Setup-'+require('../package.json').version+'-x64.exe');if(!exe)throw Error('Installer missing');
  await promisify(execFile)(path.resolve('dist',exe),['/S','/CURRENTUSER','/D='+install],{timeout:120000});
  const uninstall=(await fs.readdir(install)).find(n=>/^Uninstall .*\.exe$/.test(n));if(!uninstall)throw Error('Installed uninstaller missing');
