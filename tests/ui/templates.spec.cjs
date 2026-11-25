@@ -22,6 +22,7 @@ test('dynamic templates: all 147 labels, new categories, selection, triple save,
  async function importData(data,merge=false){await page.locator('#templateFileInput').setInputFiles({name:'template.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(data))});await expect(page.locator('#importModal')).toHaveClass(/show/);await page.locator(merge?'#btnDoMergeImport':'#btnDoOverwriteImport').click();await expect(page.locator('#importModal')).not.toHaveClass(/show/);}
  async function check(dict){
   await expect(page.locator('#sideScroll .pos-group')).toHaveCount(Object.keys(dict).length);
+  await page.locator('#sideScroll .pos-toggle43[aria-expanded="false"]').evaluateAll(es=>es.forEach(e=>e.click()));
   for(const [cat,tags]of Object.entries(dict)){const group=page.locator('#sideScroll '+selector('.pos-group',cat));await expect(group.locator('.pos-count')).toHaveText(String(tags.length));expect(await group.locator('.def-item').evaluateAll(es=>es.map(e=>e.dataset.text))).toEqual(tags);}
  }
  async function save(){await page.waitForFunction(()=>!XunjianDesktop.busy()&&!document.getElementById('btnBottomSave').disabled);const before=await page.evaluate(()=>__templateTest.stats().completed);await page.locator('#btnBottomSave').click();await page.waitForFunction(n=>!XunjianDesktop.busy()&&__templateTest.stats().completed>n,before);}

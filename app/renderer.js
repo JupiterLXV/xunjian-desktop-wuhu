@@ -337,6 +337,7 @@
   var locationAdjacency = JSON.parse(JSON.stringify(DEFAULT_LOCATION_ADJACENCY)); // 动态关联推荐图谱
   var candidatePool = [];          // 动态可增删改的候选分类词池
   var isCandidateManageMode = false; // 是否处于候选词池管理（增删改）模式
+  var expandedDefectCategories43 = new Set(); // Session-only: every category starts collapsed.
   var hiddenDefects = {};          // 被隐藏的缺陷名 -> true
   var criticalDefects = new Set(CRITICAL_DEFECTS); // 用户可自定义的危急缺陷标签集合，默认沿用系统模板
   var viewedPhotosMap = {};        // 已浏览查看过的照片文件名映射 -> true
@@ -2527,9 +2528,10 @@
 
   // 保持右侧标签绝对简洁清爽，无占位拖拽手柄，支持直接按住拖拽排序与移动，使用极简高清晰矢量图标
   function renderCategoryGroup(catName, items, extraClass, badgeHtml) {
-    var h = '<div class="pos-group ' + (extraClass || '') + '" data-category="' + esc(catName) + '">';
+    var expanded=expandedDefectCategories43.has(catName)||!!(searchInput&&searchInput.value.trim());
+    var h = '<div class="pos-group ' + (extraClass || '') + (expanded?' category-expanded43':'') + '" data-category="' + esc(catName) + '">';
     h += '  <div class="pos-header" draggable="true" data-category="' + esc(catName) + '" title="按住可上下拖动调整分类位置">';
-    h += '    <span class="pos-title-text" title="分类：' + esc(catName) + '">【' + esc(catName) + '】 ' + (badgeHtml || '') + '</span>';
+    h += '    <button type="button" class="pos-toggle43" aria-expanded="'+expanded+'" aria-label="'+(expanded?'收起':'展开')+'分类：'+esc(catName)+'"><span class="category-arrow43" aria-hidden="true">›</span><span class="pos-title-text" title="分类：' + esc(catName) + '">【' + esc(catName) + '】 ' + (badgeHtml || '') + '</span></button>';
     h += '    <span class="pos-count" title="该分类下标签数量">' + (items ? items.length : 0) + '</span>';
     h += '    <div class="pos-actions">';
     h += '      <button class="action-icon-btn config-rel-btn" data-category="' + esc(catName) + '" title="配置关联推荐">' + ICONS.link + '</button>';
@@ -2538,7 +2540,7 @@
     h += '      <button class="action-icon-btn del-btn del-cat-btn" data-category="' + esc(catName) + '" title="删除此分类">' + ICONS.trash + '</button>';
     h += '    </div>';
     h += '  </div>';
-    h += '  <div class="pos-body" data-category="' + esc(catName) + '">';
+    h += '  <div class="pos-body" data-category="' + esc(catName) + '"'+(expanded?'':' hidden')+'>';
     if (items && items.length > 0) {
       for (var i = 0; i < items.length; i++) {
         h += defItemHtml(items[i], catName);
@@ -3277,6 +3279,7 @@
           if (tagText.charAt(0) !== '_') tagText = '_' + tagText;
           if (!defectDict[targetCat]) defectDict[targetCat] = [];
           defectDict[targetCat].push(tagText);
+          expandedDefectCategories43.add(targetCat);
           saveDefectDict();
           renderModalCategoryList();
           renderSide();
@@ -3590,6 +3593,11 @@
 
   if (btnOpenRecSettings) btnOpenRecSettings.addEventListener('click', function () { settingsPanel.classList.remove('show'); openRecommendModal(); });
 
+  sideScroll.addEventListener('keydown',function(e){
+    var toggle=e.target.closest('.pos-toggle43');
+    if(toggle&&(e.key==='Enter'||e.key===' ')){e.preventDefault();e.stopPropagation();if(!e.repeat)toggle.click();}
+  });
+
   sideScroll.addEventListener('click', function (e) {
     if (Date.now() - lastDragEndTime < 220) return; // 拖拽刚结束时避免误触发点击事件
     if (e.target.closest('#restoreHidden')) { restoreHidden(); return; }
@@ -3602,6 +3610,15 @@
 
     if (e.target.closest('#btnSideAddCat') || e.target.closest('#btnAddNewCategory')) {
       createNewCategoryDialog();
+      return;
+    }
+
+    var foldHeader43=e.target.closest('.pos-header');
+    if(foldHeader43&&!e.target.closest('.pos-actions')){
+      var group43=foldHeader43.closest('.pos-group'),body43=group43.querySelector('.pos-body'),open43=body43.hidden,cat43=foldHeader43.dataset.category;
+      if(open43)expandedDefectCategories43.add(cat43);else expandedDefectCategories43.delete(cat43);
+      body43.hidden=!open43;group43.classList.toggle('category-expanded43',open43);
+      var toggle43=foldHeader43.querySelector('.pos-toggle43');toggle43.setAttribute('aria-expanded',String(open43));toggle43.setAttribute('aria-label',(open43?'收起':'展开')+'分类：'+cat43);
       return;
     }
 
@@ -3676,6 +3693,7 @@
         if (tagText.charAt(0) !== '_') tagText = '_' + tagText;
         if (!defectDict[targetCat]) defectDict[targetCat] = [];
         defectDict[targetCat].push(tagText);
+        expandedDefectCategories43.add(targetCat);
         saveDefectDict();
         renderSide();
         appendDefect(tagText);
@@ -5920,6 +5938,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
       txt(btnFilterAll,'全部 ('+summary.total+')');txt(btnFilterMarked,'已标记 ('+summary.marked+')');txt(btnFilterUnmarked,'未标记 ('+(summary.total-summary.marked)+')');txt(btnFilterUnviewed,'未看 ('+(summary.total-summary.viewed)+')');
     }
     return {ensure:ensure,invalidate:invalidate,markedChanged:markedChanged,viewed:viewed,next:next,position:position,paint:paint,leafDirs:leafDirs,reviewChanged:reviewChanged,
+      towerProgress43:function(){ensure();return {finished:summary.finished,total:towers.size};},
       groupStats:function(kind,key){ensure();return kind==='line'?lines.get(key):towers.get(key);},
       review:function(){ensure();return review;},last:function(){ensure();return lastViewed;}};
   })();
@@ -5933,7 +5952,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
     var selector=$('reviewStatus'),critical=$('criticalDecision');if(!selector)return;
     var id=curName(),r=reviewOf(id);selector.disabled=critical.disabled=!id||editLocked48();selector.value=r.status;critical.value=r.decision;
     var c=FastIndex.review(),text='检查完成 '+(c.clear+c.defect)+'/'+state.files.length+' · 待检 '+c.pending+' · 复核 '+c.review+' · 不可用 '+c.unusable;
-    if($('reviewSummary').textContent!==text)$('reviewSummary').textContent=text;var progress=$('inspectionProgress48');if(progress){progress.max=Math.max(1,state.files.length);progress.value=c.clear+c.defect;progress.title=text;}
+    if($('reviewSummary').textContent!==text)$('reviewSummary').textContent=text;var progress=$('inspectionProgress48');if(progress){var towers43=FastIndex.towerProgress43(),towerText43='已看杆塔 '+towers43.finished+'/'+towers43.total+' 基（本基全部照片已看后计入）';progress.max=Math.max(1,towers43.total);progress.value=towers43.finished;progress.title=towerText43;progress.setAttribute('aria-label','杆塔浏览进度');progress.setAttribute('aria-valuetext',towerText43);}
   }
 
   // Worker source is embedded so the downloaded HTML remains a single offline file.

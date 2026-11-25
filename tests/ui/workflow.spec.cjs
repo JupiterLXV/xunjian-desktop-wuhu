@@ -39,6 +39,8 @@ async function draw(page,x1,y1,x2,y2){
 async function choose(page,tag='_横担端U型挂板-螺母松动-严重'){
  await expect(async()=>{
   await page.waitForFunction(()=>!XunjianDesktop.busy()&&!document.getElementById('sideScroll').inert);
+  const item=page.locator(`.def-item[data-text="${tag}"]`),toggle=item.locator('..').locator('..').locator('.pos-toggle43');
+  if(await toggle.getAttribute('aria-expanded')==='false')await toggle.click();
   await page.locator(`.def-item[data-text="${tag}"]`).click();
   await page.waitForFunction(t=>__test62.getMeta(__test62.curName()).appended[0]===t,tag,{timeout:1000});
  }).toPass({timeout:10000,intervals:[200,500]});

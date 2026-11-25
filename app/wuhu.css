@@ -24,3 +24,10 @@
 .report-result-path { flex:1 1 260px; min-width:0; overflow-wrap:anywhere; color:var(--text); }
 .report-result-btns { display:flex; gap:6px; flex-shrink:0; }
 .report-log { margin:12px 0 0; padding:10px 12px; min-height:140px; max-height:220px; overflow:auto; background:var(--input-bg); color:var(--text); border:0.5px solid var(--panel-border); border-radius:6px; font:12px/1.55 Consolas, "Microsoft YaHei", monospace; white-space:pre-wrap; word-break:break-word; }
+
+/* Category controls inherit all original theme colors; closed bodies retain their tags. */
+#sideScroll .pos-body[hidden] { display:none; }
+#sideScroll .pos-toggle43 { display:flex; align-items:center; gap:5px; flex:1; min-width:0; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+#sideScroll .pos-toggle43:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:3px; }
+#sideScroll .category-arrow43 { display:inline-block; flex-shrink:0; font-size:17px; line-height:1; }
+#sideScroll .category-expanded43 .category-arrow43 { transform:rotate(90deg); }
