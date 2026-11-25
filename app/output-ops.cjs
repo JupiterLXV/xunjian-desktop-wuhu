@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs/promises'),path=require('node:path'),crypto=require('node:crypto');
-const JOURNAL='.xunjian-recovery-v1',INDEX='.xunjian-output-v1.json',DIRS=['大图','小图','缺陷圈示图','缺陷原图','危急缺陷'];
+const JOURNAL='.xunjian-recovery-v1',INDEX='.xunjian-output-v1.json',DIRS=['大图','小图','原图','缺陷圈示图','缺陷原图','危急缺陷'];
 async function retry(job){for(let i=0;;i++){try{return await job();}catch(e){if(i>=4||!['EBUSY','EPERM','EACCES'].includes(e.code))throw e;await new Promise(r=>setTimeout(r,100*(i+1)));}}}
 async function syncFile(p){const h=await fs.open(p,'r+');try{await h.sync();}finally{await h.close();}}
 async function resolve(s,root,rel,create=false){

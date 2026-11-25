@@ -1,0 +1,5 @@
+{
+  "version": "50.4.0",
+  "parseFunction": "function _rawParseFilePrefixAndLocation(filename,relPath){\n    var location=sourceLocation62(relPath||filename),pole=location.pole||'待确认杆号';\n    return {prefix:location.valid?location.line+'-'+location.branch:'待确认线路',tower:pole,towerNum:Number(pole.match(/\\d+/)?.[0]||999999),loc:'',branch:location.branch,line:location.line};\n  }",
+  "virtualTreeSha256": "c4d1eed421015cf03f127c7021bd6d6000bab374cbdab3a2d3c7e3560c8533a2"
+}

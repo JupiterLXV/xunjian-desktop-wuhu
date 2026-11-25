@@ -4,7 +4,7 @@
   else root.WuhuCore = factory();
 })(typeof globalThis === 'object' ? globalThis : this, function () {
   'use strict';
-  const OUTPUT_DIRS = ['大图', '小图'];
+  const OUTPUT_DIRS = ['大图', '小图', '原图'];
   const LEGACY_DIRS = ['缺陷圈示图', '缺陷原图', '危急缺陷'];
   function tag(rule) { return '_' + [rule.component, rule.description, rule.severity].join('-'); }
   function findRule(rules, text) { return rules.find(r => tag(r) === text) || null; }
@@ -16,11 +16,11 @@
   function parseLocation(filePath, rootPath) {
     // When a picker is opened at a line/branch/pole, its full granted path supplies ancestors.
     const split = p => String(p || '').replace(/\\/g, '/').split('/').filter(Boolean);
-    const parts = split(rootPath).concat(split(filePath));
+    const parts = /^(?:[A-Za-z]:[\\/]|[\\/])/.test(String(filePath||'')) ? split(filePath) : split(rootPath).concat(split(filePath));
     parts.pop(); // Camera filenames never supply a field.
     const pole = parts.at(-1) || '', branch = parts.at(-2) || '', line = parts.at(-3) || '';
     const valid = /^#\d+(?:[-_~]\d+|[A-Za-z])?(?:号?[杆塔基])?$/.test(pole) &&
-      /(?:线|线路)$/.test(branch) && /(?:线|线路)$/.test(line) &&
+      !!branch && !/^[A-Za-z]:$/.test(branch) && /(?:线|线路)(?:[（(].*[）)])?$/.test(line) &&
       !/^[A-Za-z]:$/.test(line);
     return { line: valid ? line : '', branch: valid ? branch : '', pole: valid ? pole : '', valid };
   }

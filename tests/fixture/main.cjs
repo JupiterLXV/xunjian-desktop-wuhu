@@ -26,7 +26,7 @@ app.whenReady().then(async()=>{
   else value=await service.call(op,args);
   return {ok:true,value};
  }catch(e){return {ok:false,error:normalizeError(e)};}});
- const win=new BrowserWindow({width:1440,height:960,show:true,webPreferences:{preload:path.join(__dirname,'../../app/preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+ const win=new BrowserWindow({width:1440,height:960,show:true,webPreferences:{preload:path.join(__dirname,'../../app/preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false}});
  service.onFilesChanged=()=>{if(!win.isDestroyed())win.webContents.send('desktop:files-changed');};
  await win.loadFile(path.join(dir,'app/index.html'));
 });

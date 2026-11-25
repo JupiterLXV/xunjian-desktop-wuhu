@@ -2,6 +2,7 @@ name: Windows installer
 on:
   push:
     branches: [main]
+    paths-ignore: ['docs/**', 'README.md', 'CHANGELOG.md']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,12 +23,28 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
+      - name: Prepare local Windows SMB test share
+        shell: pwsh
+        run: |
+          $shareName = "XunjianCI-${{ github.run_id }}"
+          $shareRoot = Join-Path $env:RUNNER_TEMP $shareName
+          New-Item -ItemType Directory -Path $shareRoot -Force | Out-Null
+          try {
+            Start-Service LanmanServer -ErrorAction Stop
+            $runnerUser = "$env:USERDOMAIN\$env:USERNAME"
+            New-SmbShare -Name $shareName -Path $shareRoot -FullAccess $runnerUser -ErrorAction Stop | Out-Null
+            "XUNJIAN_TEST_UNC=\\localhost\$shareName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          } catch {
+            Write-Warning "Local SMB unavailable; UNC integration test will explicitly skip: $_"
+          }
       - name: Syntax, rule, authorization, renderer and performance regression tests
         run: npm test
       - name: Build Windows x64 NSIS installer
         run: npm run dist:win
-      - name: Verify packaged application and record checksums
-        run: node scripts/build-manifest.cjs
+      - name: Verify packaged application, original logo and checksums
+        run: |
+          node scripts/build-manifest.cjs
+          node scripts/verify-icons.cjs "dist/win-unpacked/巡检缺陷工具.exe" "dist/Xunjian-Wuhu-Setup-50.4.1-x64.exe"
       - name: Install and start the packaged program on Windows
         run: npm run test:installed
       - name: Upload installer and checksums
@@ -50,3 +67,8 @@ jobs:
             test-results/
           if-no-files-found: ignore
           retention-days: 14
+      - name: Remove local test share
+        if: always()
+        shell: pwsh
+        run: |
+          Get-SmbShare -Name "XunjianCI-${{ github.run_id }}" -ErrorAction SilentlyContinue | Remove-SmbShare -Force -ErrorAction SilentlyContinue

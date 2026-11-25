@@ -1,6 +1,6 @@
 {
   "name": "xunjian-desktop",
-  "version": "50.4.0",
+  "version": "50.4.1",
   "description": "巡检缺陷命名分类工具桌面版",
   "author": "Xunjian Desktop",
   "private": true,
@@ -20,7 +20,9 @@
     "acorn": "8.15.0",
     "electron": "45.5.0",
     "electron-builder": "26.18.0",
-    "pngjs": "7.0.0"
+    "jpeg-js": "0.4.4",
+    "pngjs": "7.0.0",
+    "resedit": "3.0.2"
   },
   "build": {
     "appId": "local.xunjian.desktop",
@@ -43,9 +45,9 @@
           ]
         }
       ],
-      "icon": "app/icon.png",
+      "icon": "app/icon.ico",
       "artifactName": "Xunjian-Wuhu-Setup-${version}-${arch}.${ext}",
-      "signAndEditExecutable": false
+      "signExecutable": false
     },
     "nsis": {
       "oneClick": false,
@@ -53,7 +55,11 @@
       "perMachine": false,
       "deleteAppDataOnUninstall": false,
       "createDesktopShortcut": true,
-      "shortcutName": "巡检缺陷工具"
+      "shortcutName": "巡检缺陷工具",
+      "installerIcon": "app/icon.ico",
+      "uninstallerIcon": "app/icon.ico",
+      "include": "build/installer.nsh",
+      "createStartMenuShortcut": true
     },
     "npmRebuild": false
   }

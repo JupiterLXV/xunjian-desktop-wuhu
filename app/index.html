@@ -1894,7 +1894,7 @@
     <div class="toolbar-details">
     <span id="groupTag"></span>
     <span id="filename"></span><span id="imageQuality" style="font-size:10px;color:var(--muted);white-space:nowrap" aria-live="polite"></span>
-    <span id="dirtyDot" title="当前图片已绘制红框（保存时成对输出至“大图”和“小图”，原图不修改）"></span>
+    <span id="dirtyDot" title="当前图片已绘制红框（保存时同时输出至“大图”“小图”“原图”，原图不修改）"></span>
     <span id="savedFlash">已保存 ✓</span>
     <details id="queuePanel48"><summary aria-label="查看保存任务"><span id="saveStatus48" role="status" aria-live="polite">保存任务</span><span id="queueCount48">就绪</span></summary><div class="queue-pop48"><h3>保存任务</h3><p>可以继续检查下一张。最多保留 4 个待处理任务；写入成功后显示“已保存”。</p><ul id="saveJobs48"></ul><button id="retryRecords48" class="btn" type="button" hidden>重试保存本地记录</button></div></details>
     </div>
@@ -1972,7 +1972,7 @@
       <div id="viewerBottomBar" style="display:none">
         <div id="preview" title="保存后新文件名实时预览（点击追加的缺陷徽章可直接撤回/移除）"></div>
         <div style="display:flex;align-items:center;gap:10px">
-          <button id="btnCritical" type="button" title="选择危急规则后成对保存至大图、小图，不另建等级目录">
+          <button id="btnCritical" type="button" title="选择危急规则后同时保存至大图、小图、原图，不另建等级目录">
             <svg id="btnCriticalIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="display:block"><path d="M12 2 1 21h22L12 2zm0 5.6 7.2 12.4H4.8L12 7.6zM11 10h2v5h-2v-5zm0 6.5h2v2h-2v-2z"/></svg><span id="btnCriticalLabel" class="label">危急缺陷</span>
           </button>
           <button id="btnClearSecondary" type="button" title="清除当前圈示与标签并开启二次编辑，保存时将独立生成新缺陷图片，不会覆盖原有保存图片">
@@ -1985,7 +1985,7 @@
 
       <div id="empty">
         <div class="big">让每一次检查都有据可查</div>
-        <div class="sub">选择巡检原图目录，连接成果输出目录。<br>圈选缺陷、追加标签，按保存键后继续检查下一张。<br>完整标注大图与局部标注小图同名保存；进度和模板会保留。</div>
+        <div class="sub">选择巡检原图目录，连接成果输出目录。<br>圈选缺陷、追加标签，按保存键后继续检查下一张。<br>大图、小图与未经改动的原图同名保存；进度和模板会保留。</div>
         <div style="display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
           <button id="btnEmptyRestore" class="btn primary" type="button" style="display:none;height:38px;padding:0 22px;font-size:13.5px;font-weight:600">恢复上次目录: <span id="emptyRestoreDirName"></span></button>
           <button id="btnEmptyPick" class="btn primary" type="button" style="height:38px;padding:0 20px;font-size:13px">选择输入文件夹</button>

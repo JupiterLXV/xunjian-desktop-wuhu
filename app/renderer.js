@@ -88,7 +88,7 @@
         var req = store.get(key);
         var value=null;
         req.onsuccess = function (e) { value=e.target.result || null;if(window.DesktopFS)value=DesktopFS.revive(value); };
-        tx.oncomplete=function(){db.close();resolve(value);};
+        tx.oncomplete=async function(){db.close();try{if(value?.__desktopHandle&&window.DesktopFS)value=DesktopFS.revive(await DesktopFS.call('describe',{h:value}));resolve(value);}catch(e){console.warn('目录句柄恢复失败',e);resolve(null);}};
         tx.onabort=tx.onerror=function(){db.close();resolve(null);};
       });
     } catch (e) {
@@ -581,7 +581,7 @@
   }
   function _rawParseFilePrefixAndLocation(filename,relPath){
     var location=sourceLocation62(relPath||filename),pole=location.pole||'待确认杆号';
-    return {prefix:location.valid?location.line+'-'+location.branch:'待确认线路',tower:pole,towerNum:Number(pole.match(/\d+/)?.[0]||999999),loc:'',branch:location.branch,line:location.line};
+    return {prefix:location.valid?location.line+'-'+location.branch:'待确认线路',tower:pole,towerNum:Number(pole.match(/\d+/)?.[0]||999999),loc:String(filename||'').replace(/\.[^.]+$/,''),branch:location.branch,line:location.line};
   }
 
 
@@ -4770,7 +4770,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   // i35: identities, exact output ownership, recoverable saves and explicit review state.
   var projectId = '', photoPaths = {}, ioBusy = false, reviewData = {}, savingPhoto46=null;
   var INDEX_FILE = '.xunjian-output-v1.json';
-  var DIR_BOX = '大图', DIR_ORIG = '小图', DIR_CRIT = '危急缺陷';
+  var DIR_BOX = '大图', DIR_ORIG = '小图', DIR_RAW = '原图', DIR_CRIT = '危急缺陷';
   var OUTPUT_SCAN_DIRS = WuhuCore.OUTPUT_DIRS.concat(WuhuCore.LEGACY_DIRS);
   function uid() { return crypto.randomUUID(); }
   function displayName(id) { var f = state.byName.get(id); return f ? f.name : String(id || ''); }
@@ -5188,7 +5188,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
       var message=active?active.phase+' · '+active.name:failures.length?failures.length+' 项保存失败，点击重试':completed?'已保存 '+completed+' 次':'保存任务';
       if(title&&title.textContent!==message)title.textContent=message;
       if(badge)badge.textContent=waiting.length?'待完成 '+waiting.length:failures.length?'需处理 '+failures.length:'就绪';
-      if(button){button.disabled=!!current&&has(current);button.textContent=has(current)?'本图正在保存…':'保存缺陷图片';}
+      if(button){button.disabled=!current||ioBusy||state.navBusy||has(current);button.textContent=has(current)?'本图正在保存…':ioBusy||state.navBusy?'正在同步，请稍候…':'保存缺陷图片';}
       var list=$('saveJobs48');if(list&&$('queuePanel48').open){
         list.innerHTML=jobs.slice(-8).reverse().map(function(j){
           var status=j.status==='failed'?'保存失败':j.status==='done'?'已保存':j.status==='waiting'?'排队中':j.phase;
@@ -5210,14 +5210,15 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
       savingPhoto46=job.id;job.phase='合成圈框';paint();cancelDetails38();trimForExport46();schedulePreload(state.index,navDirection47);await yield46();
       var pairBlobs;exportBusy47=true;
       try{pairBlobs=await exportPair62(job);}finally{exportBusy47=false;detail38();}
-      job.phase='写入大小图';paint();var additions=[],pair=uid();
+      job.phase='写入三份成果';paint();var additions=[],pair=uid();
       additions.push(makeArtifact(job.file,DIR_BOX,'normal',pairBlobs.large,job.tag,job.outputName));
       additions.push(makeArtifact(job.file,DIR_ORIG,'normal',pairBlobs.small,job.tag,job.outputName));
+      additions.push(makeArtifact(job.file,DIR_RAW,'normal',job.clean,job.tag,job.outputName));
       additions.forEach(function(a){a.boxes62=job.boxes;a.crop62=job.cropOptions;a.location62=job.outputName.location;a.locationManual62=job.locationManual;a.stroke62=job.stroke;a.exportCrop62=job.crop;a.natural62=job.natural;});
       additions.forEach(function(a){a.pairId=pair;});
       var doc=await commitArtifacts(job.file,additions,function(r){
         if(job.secondary)return false;
-        return r.dir===DIR_BOX||r.dir===DIR_ORIG;
+        return r.dir===DIR_BOX||r.dir===DIR_ORIG||r.dir===DIR_RAW;
       },true);
       // Disk commit is the success boundary. A later display failure cannot turn it into an unsaved task.
       job.status='done';completed++;job.clean=null;
@@ -5226,7 +5227,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
       if(!job.manual){job.meta.saved=true;job.meta.isSecondaryEdit=false;}
       try{await applySavedPhoto46(job.root,doc,job.id);if(curName()===job.id){dropImage(job.id);await repaintCurrent52(true,false);}}
       catch(e){toast(job.name+' 已保存，界面未完全同步，请点击刷新输出',6000);console.warn(e);}
-      if(curName()===job.id)flashSaved('大小图已保存 ✓');
+      if(curName()===job.id)flashSaved('三份成果已保存 ✓');
       renderSide();updateHud();
     }
     async function pump(){
@@ -5256,14 +5257,16 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
       var id=curName(),f=state.byName.get(id);if(!f){toast('未打开任何图片');return null;}
       if(photoPending48(id)){toast('本图已在保存队列中');return null;}
       if(!await ensureOutputDir())return null;if(outputScanTask46)await outputScanTask46;
-      if(OUTPUT_SCAN_DIRS.includes(output.mainHandle.name))throw new Error('请选择大图、小图的上一级成果目录');
+      if(OUTPUT_SCAN_DIRS.includes(output.mainHandle.name))throw new Error('请选择大图、小图、原图的上一级成果目录');
       var m=getMeta(id);newNamePreview(id);
       if(!WuhuCore.findRule(WuhuRules,m.appended[0])||m.appended.length!==1)throw new Error('请选择一条完整的芜湖缺陷规则');
       var crop62=currentCrop62();if(!crop62)throw new Error('请先绘制至少一个有效红框，再保存缺陷大小图');
       WuhuCore.filename(locationFor62(id),WuhuCore.findRule(WuhuRules,m.appended[0]));
+      var clean62=f.file||await f.handle.getFile(),header62=new Uint8Array(await clean62.slice(0,3).arrayBuffer());
+      if(header62[0]!==255||header62[1]!==216||header62[2]!==255)throw new Error('原图必须是 JPG/JPEG，才能不重新编码并保存三份同名 JPG。其他格式仍可浏览。');
       return {id:id,file:f,name:f.name,project:projectId,root:output.mainHandle,meta:m,manual:false,locationManual:!!m.location62,crop:crop62,cropOptions:Object.assign({},m.crop62),natural:Object.assign({},state.natural),
         boxes:m.boxes.map(function(b){return Object.assign({},b);}),tag:m.appended.join(''),secondary:!!m.isSecondaryEdit,
-        outputName:Object.assign({},newNamePreview(id)),critical:effectiveCritical(id),stroke:strokeWidth,mime:f.mime,clean:f.file||await f.handle.getFile()};
+        outputName:Object.assign({},newNamePreview(id)),critical:effectiveCritical(id),stroke:strokeWidth,mime:f.mime,clean:clean62};
     },true);
     return snapshot?SaveQueue48.enqueue(snapshot):false;
   }
@@ -5778,6 +5781,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   function refreshTreeStats(){FastIndex.paint();}
   function getNextFilteredIndex(from,step){return FastIndex.next(from,step);}
   function updateReviewUI(){
+    if(SaveQueue48)SaveQueue48.paint();
     var selector=$('reviewStatus'),critical=$('criticalDecision');if(!selector)return;
     var id=curName(),r=reviewOf(id);selector.disabled=critical.disabled=!id||editLocked48();selector.value=r.status;critical.value=r.decision;
     var c=FastIndex.review(),text='检查完成 '+(c.clear+c.defect)+'/'+state.files.length+' · 待检 '+c.pending+' · 复核 '+c.review+' · 不可用 '+c.unusable;
