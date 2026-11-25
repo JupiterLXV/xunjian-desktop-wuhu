@@ -12,11 +12,11 @@ const {_electron}=require('@playwright/test');
  try{
   const page=await app.firstWindow();await page.waitForFunction(()=>!!window.XunjianDesktop);
   const rules=await page.evaluate(()=>desktopAPI.invoke('defect-rules'));if(!rules.ok||!Array.isArray(rules.value)||rules.value.length!==45)throw Error('Direct startup failed');
-  const image=await app.evaluate(async({app,nativeImage})=>{const ico=nativeImage.createFromPath(require('node:path').join(app.getAppPath(),'app/icon.ico'));const shell=await app.getFileIcon(process.execPath,{size:'normal'});return {icoEmpty:ico.isEmpty(),shellEmpty:shell.isEmpty()};});if(image.icoEmpty||image.shellEmpty)throw Error('Native Windows icon loading failed');
+  const image=await app.evaluate(async({app,nativeImage})=>{const ico=nativeImage.createFromBuffer(process.getBuiltinModule('fs').readFileSync(process.getBuiltinModule('path').join(app.getAppPath(),'app/icon.png')));const shell=await app.getFileIcon(process.execPath,{size:'normal'});return {icoEmpty:ico.isEmpty(),shellEmpty:shell.isEmpty()};});if(image.icoEmpty||image.shellEmpty)throw Error('Native Windows icon loading failed');
   const hwnd=await app.evaluate(({BrowserWindow})=>{const b=BrowserWindow.getAllWindows()[0].getNativeWindowHandle();return (b.length===8?b.readBigUInt64LE(0):BigInt(b.readUInt32LE(0))).toString();});
   const check=await promisify(execFile)('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.resolve('scripts/verify-window-icon.ps1'),'-WindowHandle',hwnd,'-OriginalPng',path.resolve('app/icon.png')],{timeout:30000});console.log(check.stdout);
   const shortcuts=await app.evaluate(async({app,shell})=>{
-   const fs=require('node:fs/promises'),path=require('node:path');
+   const fs=process.getBuiltinModule('fs/promises'),path=process.getBuiltinModule('path');
    const start=path.join(app.getPath('appData'),'Microsoft','Windows','Start Menu','Programs');
    async function find(dir){for(const item of await fs.readdir(dir,{withFileTypes:true})){const p=path.join(dir,item.name);if(item.isDirectory()){const found=await find(p);if(found)return found;}else if(item.name==='巡检缺陷工具.lnk')return p;}}
    const links=[path.join(app.getPath('desktop'),'巡检缺陷工具.lnk'),await find(start)];
