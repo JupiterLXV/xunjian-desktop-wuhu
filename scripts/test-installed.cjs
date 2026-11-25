@@ -11,10 +11,9 @@ const {_electron}=require('@playwright/test');
  await promisify(execFile)('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.resolve('scripts/verify-shortcuts.ps1'),'-InstallDirectory',install],{timeout:30000});
  const app=await _electron.launch({executablePath:path.join(install,'巡检缺陷工具.exe'),args:['--user-data-dir='+path.join(dir,'profile')],timeout:60000});
  try{
-  const page=await app.firstWindow();await page.waitForFunction(()=>/^XJ1-/.test(document.getElementById('machine')?.value));
-  const status=await page.evaluate(()=>desktopAPI.invoke('license-status'));if(status.value.active)throw Error('Fresh installation unexpectedly licensed');
-  const gate=await page.evaluate(()=>desktopAPI.invoke('defect-rules'));if(gate.ok||gate.error.name!=='NotAllowedError')throw Error('Activation gate failed');
+  const page=await app.firstWindow();await page.waitForFunction(()=>!!window.XunjianDesktop);
+  const rules=await page.evaluate(()=>desktopAPI.invoke('defect-rules'));if(!rules.ok||!Array.isArray(rules.value)||rules.value.length!==45)throw Error('Direct startup failed');
   const image=await app.evaluate(async({app,nativeImage})=>{const ico=nativeImage.createFromPath(require('node:path').join(app.getAppPath(),'app/icon.ico'));const shell=await app.getFileIcon(process.execPath,{size:'normal'});return {icoEmpty:ico.isEmpty(),shellEmpty:shell.isEmpty()};});if(image.icoEmpty||image.shellEmpty)throw Error('Native Windows icon loading failed');
-  console.log('Windows installer, startup, MachineGuid, inactive-license gate, original PE logos and both shortcut identities passed');
+  console.log('Windows installer, direct startup, original PE logos and both shortcut identities passed');
  }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});await app.close().catch(()=>{});}
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -99,12 +99,7 @@
     "d04d11d840cbcab8c96d4fdbc93e1436b0bba86c2f19f805cb24c6f2bb8314ff"
   ],
   "unchangedFiles": {
-    "app/license.cjs": "afb3de05eb2800b136f884d15f27281f2a28df99a2d0d19e26bbefbe95dde3dc",
-    "app/license-public.pem": "8ce14ff7b55b04f5889c83af71d9c51017fab4323ca4ab05289faa23a03ac5b4",
     "app/preload.cjs": "10a7927b78d244a332df9d0d8d3d35f5983125b1e4880992a4d1310cafb41b22",
-    "app/activation.html": "64e620ce01bf32726a06dfa48e8a678c249aa6d18bec7d85759cadf9d29709bd",
-    "app/activation.js": "96290b9bfe8f8fc6b9f73b1dc2b44f9cc037069cf886b5bd1fa3a43888ed7b2a",
-    "app/activation.css": "c21743d5c8c08a12ff2da564bdef4de55f6f591a1bb6f865bff7e7fa4bc6f9c5",
     "app/icon.png": "5149a340f45039bc9dd1ccc703b87261626648361c165d21044f6db86fb6acb3",
     "app/desktop.css": "589226016d5c5e36f9fc3576d2797375d7a203a973636e3dc034087b23939df8",
     "app/desktop-fs.js": "a27be8cf244a4b6c39c03d16f743a2a87ea590a2f69bf1c90545ef6b2915943c",
