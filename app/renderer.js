@@ -6279,7 +6279,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   function workspaceBusy52(){return ioBusy||state.navBusy||saveQueueBusy48()||!!outputScanTask46||navigationPrompt||mode!=='idle'||!!draggedItem;}
   async function desktopExclusive52(job){
     if(workspaceBusy52())throw new Error('请等待当前保存或切换完成后重试');
-    ioBusy=true;document.body.classList.add('io-busy');
+    ioBusy=true;document.body.classList.add('io-busy');updateReviewUI();
     try{return await job();}finally{ioBusy=false;document.body.classList.remove('io-busy');loadingEl.style.display='none';updateReviewUI();SaveQueue48.paint();SaveQueue48.pump();pumpDecode();}
   }
   async function repaintCurrent52(forceClean,refit){

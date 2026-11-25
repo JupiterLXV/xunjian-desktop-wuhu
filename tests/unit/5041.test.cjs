@@ -9,7 +9,7 @@ test('50.4.1: reproduce the 50.4.0 empty display binding, retain virtual-tree al
 });
 test('50.4.1: a serialized old directory handle is refreshed from the granted filesystem path',async()=>{
  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'xj-handle-'));
- try{const data=path.join(dir,'profile'),pole=path.join(dir,'10kV测试线','主线','#001');await fs.mkdir(pole,{recursive:true});const service=new FileService(data);await service.init();const h=await service.grant(pole);delete h.sourcePath;const restored=new FileService(data);await restored.init();const fresh=await restored.call('describe',{h});assert.equal(fresh.sourcePath,pole);assert.equal(core.parseLocation('DJI_0024.JPG',fresh.sourcePath).line,'10kV测试线');await service.cleanup();await restored.cleanup();}finally{await fs.rm(dir,{recursive:true,force:true});}
+ try{const data=path.join(dir,'profile'),pole=path.join(dir,'10kV测试线','主线','#001');await fs.mkdir(pole,{recursive:true});const service=new FileService(data);await service.init();const h=await service.grant(pole);delete h.sourcePath;const restored=new FileService(data);await restored.init();const fresh=await restored.call('describe',{h});assert.equal(fresh.sourcePath,await fs.realpath(pole));assert.equal(core.parseLocation('DJI_0024.JPG',fresh.sourcePath).line,'10kV测试线');await service.cleanup();await restored.cleanup();}finally{await fs.rm(dir,{recursive:true,force:true});}
 });
 test('50.4.1: arbitrary real branch names and full UNC paths do not depend on camera filenames',()=>{
  assert.deepEqual(core.parseLocation('\\\\NAS\\照片\\10kV测试线\\良久支线（北段）\\#001\\DJI_1.JPG','Z:/unrelated'),{line:'10kV测试线',branch:'良久支线（北段）',pole:'#001',valid:true});assert.deepEqual(core.OUTPUT_DIRS,['大图','小图','原图']);

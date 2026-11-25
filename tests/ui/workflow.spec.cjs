@@ -144,15 +144,16 @@ test('preserve all 11 themes, dark mode, original keyboard shortcuts and reduced
  }finally{await cleanup(f);}
 });
 
-test('T16: second-file write failure rolls back existing output and does not report a successful pair',async()=>{
+test('T16: third-file write failure rolls back all three outputs and does not report success',async()=>{
  const f=await fixture(),{page}=f;
  try{
   await draw(page,500,500,900,900);await choose(page);expect(await save(page)).toBe(true);
   const before=JSON.parse(await fs.readFile(path.join(f.output,'.xunjian-output-v1.json'))),name=before.records[0].path;
-  const large=await fs.readFile(path.join(f.output,'大图',name)),small=await fs.readFile(path.join(f.output,'小图',name));
+  const large=await fs.readFile(path.join(f.output,'大图',name)),small=await fs.readFile(path.join(f.output,'小图',name)),raw=await fs.readFile(path.join(f.output,'原图',name));
   await f.app.evaluate(()=>{const s=global.testService,original=s.call.bind(s);let armed=true;s.call=async(op,args)=>{if(armed&&op==='commit'){const w=s.writers.get(args.id);if(w&&w.h.rel.startsWith('原图/')){armed=false;throw Object.assign(new Error('Synthetic disk write failure'),{code:'ENOSPC'});}}return original(op,args);};});
   await page.locator('#cropMargin').evaluate(e=>{e.value='100';e.dispatchEvent(new Event('input'));});expect(await save(page)).toBe(false);
   expect(await fs.readFile(path.join(f.output,'大图',name))).toEqual(large);expect(await fs.readFile(path.join(f.output,'小图',name))).toEqual(small);
+  expect(await fs.readFile(path.join(f.output,'原图',name))).toEqual(raw);
   expect(JSON.parse(await fs.readFile(path.join(f.output,'.xunjian-output-v1.json'))).records).toEqual(before.records);
   await expect(page.locator('#queuePanel48')).toHaveAttribute('open','');
   expect(f.errors).toEqual([]);
