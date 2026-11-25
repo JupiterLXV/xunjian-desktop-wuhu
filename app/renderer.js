@@ -331,6 +331,11 @@
   var criticalDefects = new Set(CRITICAL_DEFECTS); // 用户可自定义的危急缺陷标签集合，默认沿用系统模板
   var viewedPhotosMap = {};        // 已浏览查看过的照片文件名映射 -> true
   var filterMode = 'all';          // 'all' | 'marked' | 'unmarked' | 'unviewed'
+  var KEY_SKIP_INFRARED = 'xunjian_skip_infrared_v1';
+  var skipInfrared = (function () { try { return localStorage.getItem(KEY_SKIP_INFRARED) !== '0'; } catch (e) { return true; } })();
+  var allInputFiles = [];
+  var allDiscoveredDirs = [];
+  var allFilesById = new Map();
   var collapsedGroups = new Set(); // 折叠的前缀分组名称集合
   var collapsedTowers = new Set(); // 折叠的杆塔分组标识集合
   var dirRegistry = new Map();     // relDirPath -> { handle, parentHandle, name } 文件夹句柄注册表
@@ -371,7 +376,7 @@
   var sideCurLine = $('sideCurLine'), sideCurTower = $('sideCurTower'), sideCurLoc = $('sideCurLoc');
   var sideCurMarkedStatus = $('sideCurMarkedStatus'), sideCurViewedStatus = $('sideCurViewedStatus'), sideCurCriticalStatus = $('sideCurCriticalStatus');
   var leftResizer = $('leftResizer'), rightResizer = $('rightResizer'), side = $('side');
-  var btnExpandAll = $('btnExpandAll'), btnCollapseAll = $('btnCollapseAll'), btnAutoFit = $('btnAutoFit');
+  var btnExpandAll = $('btnExpandAll'), btnCollapseAll = $('btnCollapseAll'), btnAutoFit = $('btnAutoFit'), btnSkipInfrared = $('btnSkipInfrared');
   var baseCanvas = $('baseCanvas'), overlayCanvas = $('overlayCanvas');
   var baseCtx = baseCanvas.getContext('2d');
   var overlayCtx = overlayCanvas.getContext('2d');
@@ -632,7 +637,7 @@
   }
 
   function updateFolderButtonText() {
-    if (state.files.length > 0) {
+    if (state.files.length > 0 || allInputFiles.length > 0) {
       var name = (lastInputHandle ? lastInputHandle.name : '') || savedInputName || '已打开';
       if (inputFolderBtnText) {
         inputFolderBtnText.textContent = name;
@@ -675,7 +680,7 @@
     }
 
     // 1. 如果未指定强制重新选择，且已有记忆的输入目录句柄，直接尝试一键重新连接恢复
-    if (!forceNewPicker && lastInputHandle && state.files.length === 0) {
+    if (!forceNewPicker && lastInputHandle && allInputFiles.length === 0 && state.files.length === 0) {
       try {
         var status = await lastInputHandle.queryPermission({ mode: 'readwrite' });
         if (status !== 'granted') {
@@ -756,6 +761,119 @@
     return naturalCollator48.compare(a.name,b.name);
   }
 
+  function isInfraredPhotoName(name) {
+    return /T$/.test(String(name || '').replace(/\.[^.]+$/, ''));
+  }
+
+  function computeVisibleDataset(entries, dirs) {
+    if (!skipInfrared) return { files: entries.slice(), dirs: dirs.slice() };
+    var visibleFiles = entries.filter(function (f) { return !isInfraredPhotoName(f.name); });
+    var allDirHasFile = new Set();
+    var visibleDirHasFile = new Set();
+    for (var i = 0; i < entries.length; i++) {
+      var d = dirOf(entries[i].relPath || entries[i].name);
+      if (d) allDirHasFile.add(d + '/');
+    }
+    for (var j = 0; j < visibleFiles.length; j++) {
+      var vd = dirOf(visibleFiles[j].relPath || visibleFiles[j].name);
+      if (vd) visibleDirHasFile.add(vd + '/');
+    }
+    var visibleDirs = dirs.filter(function (d) {
+      return !allDirHasFile.has(d) || visibleDirHasFile.has(d);
+    });
+    return { files: visibleFiles, dirs: visibleDirs };
+  }
+
+  function setActiveDataset(files, dirs) {
+    state.files = files;
+    state.discoveredDirs = dirs;
+    state.byName = new Map();
+    state.indexByName = new Map();
+    for (var i = 0; i < files.length; i++) {
+      state.byName.set(files[i].id, files[i]);
+      state.indexByName.set(files[i].id, i);
+    }
+  }
+
+  function updateSkipInfraredBtn() {
+    if (!btnSkipInfrared) return;
+    btnSkipInfrared.classList.toggle('active', skipInfrared);
+    btnSkipInfrared.setAttribute('aria-pressed', String(skipInfrared));
+  }
+
+  async function toggleSkipInfrared() {
+    if (ioBusy || saveQueueBusy48() || state.navBusy || navigationPrompt) {
+      toast('请等待当前切换或保存完成后重试');
+      return;
+    }
+    var nextSkip = !skipInfrared;
+    var oldId = curName();
+    var oldAllIdx = oldId ? allInputFiles.findIndex(function (f) { return f.id === oldId; }) : -1;
+
+    if (nextSkip && oldId && isInfraredPhotoName(state.files[state.index] && state.files[state.index].name)) {
+      var m = getMeta(oldId);
+      if (m && !m.saved && !photoPending48(oldId) && (m.boxes.length || m.appended.length)) {
+        navigationPrompt = true;
+        var ok = false;
+        try {
+          ok = await showConfirmDialog('未保存提醒', '当前红外照片有未保存的圈框或标签，开启跳过红外后将切换离开，是否继续？');
+        } finally {
+          navigationPrompt = false;
+        }
+        if (!ok) return;
+      }
+    }
+
+    skipInfrared = nextSkip;
+    try { localStorage.setItem(KEY_SKIP_INFRARED, skipInfrared ? '1' : '0'); } catch (e) {}
+    updateSkipInfraredBtn();
+
+    if (!allInputFiles.length) return;
+
+    var active = computeVisibleDataset(allInputFiles, allDiscoveredDirs);
+    var targetId = null;
+    if (oldId && active.files.some(function (f) { return f.id === oldId; })) {
+      targetId = oldId;
+    } else if (active.files.length > 0) {
+      var activeIds = new Set(active.files.map(function (f) { return f.id; }));
+      for (var i = Math.max(0, oldAllIdx + 1); i < allInputFiles.length; i++) {
+        if (activeIds.has(allInputFiles[i].id)) { targetId = allInputFiles[i].id; break; }
+      }
+      if (!targetId) {
+        for (var j = Math.min(allInputFiles.length - 1, oldAllIdx - 1); j >= 0; j--) {
+          if (activeIds.has(allInputFiles[j].id)) { targetId = allInputFiles[j].id; break; }
+        }
+      }
+      if (!targetId) targetId = active.files[0].id;
+    }
+
+    setActiveDataset(active.files, active.dirs);
+    FastIndex.invalidate();
+    VirtualTree48.invalidate();
+
+    if (oldId && targetId === oldId && state.indexByName.has(oldId)) {
+      state.index = state.indexByName.get(oldId);
+      renderPathTree(true);
+      updateHud();
+      schedulePreload(state.index, navDirection47);
+    } else if (targetId && state.indexByName.has(targetId)) {
+      state.index = -1;
+      empty.style.display = 'none';
+      if (viewerBottomBar) viewerBottomBar.style.display = 'flex';
+      renderPathTree(false);
+      await switchTo(state.indexByName.get(targetId), true);
+    } else {
+      state.index = -1;
+      state.natural = { w: 0, h: 0 };
+      renderPathTree(false);
+      render();
+      renderSide();
+      updateHud();
+      empty.style.display = '';
+      if (viewerBottomBar) viewerBottomBar.style.display = 'none';
+    }
+  }
+
   async function setupFiles(entries, mode, handle) {
     if(ioBusy||saveQueueBusy48())return;
     if(window.desktopAPI)await saveDrafts50();
@@ -786,10 +904,18 @@
       }
       state.discoveredDirs = Array.from(dirSet);
     }
+    allDiscoveredDirs = state.discoveredDirs.slice();
 
     // 必须在排序前清空缓存，保证 comparePhotos 使用最新的 rootLineName 和解析结果
     parsedFileCache.clear();
     await sortPhotos48(entries);
+
+    allInputFiles = entries;
+    allFilesById = new Map();
+    for (var ai = 0; ai < entries.length; ai++) {
+      allFilesById.set(entries[ai].id, entries[ai]);
+    }
+    var active = computeVisibleDataset(allInputFiles, allDiscoveredDirs);
 
     clearCache();
     collapsedGroups.clear();
@@ -800,19 +926,13 @@
     btnFilterUnmarked.classList.remove('active');
     btnFilterUnviewed.classList.remove('active');
     state.mode = mode;
-    state.files = entries;
-    state.byName = new Map();
-    state.indexByName = new Map();
+    setActiveDataset(active.files, active.dirs);
     state.meta = new Map();
     state.markedFiles = new Set();
     state.markedBoxedHandles = new Map();
     state.markedDefectTags = new Map();
     state.markedCounts = new Map();
     state.criticalFiles = new Set();
-    for (var i = 0; i < entries.length; i++) {
-      state.byName.set(entries[i].id, entries[i]);
-      state.indexByName.set(entries[i].id, i);
-    }
     if(window.desktopAPI)await restoreDrafts50();
     state.index = -1;
     empty.style.display = 'none';
@@ -827,7 +947,15 @@
     }
 
     autoFitLeftPanelWidth();
-    await switchTo(0);
+    if (state.files.length > 0) {
+      await switchTo(0);
+    } else {
+      render();
+      renderSide();
+      updateHud();
+      empty.style.display = '';
+      if (viewerBottomBar) viewerBottomBar.style.display = 'none';
+    }
   }
 
   // clearCache: implementation in i35 reliability section.
@@ -1462,13 +1590,17 @@
 
     if (!diskResult.success) { toast('文件夹重命名失败，保留原目录'); return; }
     // 同步更新所有文件的 relPath
-    for (var i = 0; i < state.files.length; i++) {
-      var f = state.files[i];
+    var renameSource = allInputFiles.length ? allInputFiles : state.files;
+    for (var i = 0; i < renameSource.length; i++) {
+      var f = renameSource[i];
       var rel = f.relPath || f.name;
       if (rel.startsWith(oldLineName + '/')) {
         f.relPath = newLineName + '/' + rel.slice(oldLineName.length + 1);
       }
     }
+    allDiscoveredDirs = allDiscoveredDirs.map(function (d) {
+      return d.startsWith(oldLineName + '/') ? (newLineName + '/' + d.slice(oldLineName.length + 1)) : d;
+    });
 
     // 同步更新 dirRegistry 键名
     var newDirRegistry = new Map();
@@ -1532,8 +1664,9 @@
     }
 
     if (!diskResult.success) { toast('文件夹重命名失败，保留原目录'); return; }
-    for (var i = 0; i < state.files.length; i++) {
-      var f = state.files[i];
+    var renameTowerSource = allInputFiles.length ? allInputFiles : state.files;
+    for (var i = 0; i < renameTowerSource.length; i++) {
+      var f = renameTowerSource[i];
       var info = parseFilePrefixAndLocation(f.name, f.relPath);
       if (info.prefix === lineName && info.tower === oldTowerName) {
         var fDir = dirOf(f.relPath || f.name);
@@ -1541,6 +1674,9 @@
         f.relPath = (fParent ? (fParent + '/') : '') + newTowerName + '/' + f.name;
       }
     }
+    allDiscoveredDirs = allDiscoveredDirs.map(function (d) {
+      return d === oldDirPathKey ? newDirPathKey : (d.startsWith(oldDirPathKey) ? newDirPathKey + d.slice(oldDirPathKey.length) : d);
+    });
 
     if (oldDirPathKey && dirRegistry.has(oldDirPathKey)) {
       var dirInfo = dirRegistry.get(oldDirPathKey);
@@ -1710,8 +1846,9 @@
 
     // 检查当前同级目录内是否已存在重名文件
     var oldDir = dirOf(f.relPath || f.name);
-    var hasDuplicate = state.files.some(function (other, oi) {
-      if (oi === index) return false;
+    var dupSource = allInputFiles.length ? allInputFiles : state.files;
+    var hasDuplicate = dupSource.some(function (other) {
+      if (other.id === f.id) return false;
       var otherDir = dirOf(other.relPath || other.name);
       return (otherDir === oldDir && other.name.toLowerCase() === newFileName.toLowerCase());
     });
@@ -4347,11 +4484,12 @@
       }
 
       // 静默探测输入目录权限（若已被浏览器授权，则直接自动加载全部照片）
-      if (lastInputHandle && state.files.length === 0) {
+      if (lastInputHandle && allInputFiles.length === 0 && state.files.length === 0) {
         try {
           var inStatus = await lastInputHandle.queryPermission({ mode: 'readwrite' });
           if (inStatus === 'granted') {
             loadingEl.style.display = '';
+            state.discoveredDirs = [];
             var entries = [];
             await scanImagesRecursive(lastInputHandle, entries, '');
             loadingEl.style.display = 'none';
@@ -4858,8 +4996,8 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
     projectId=nextProject;photoPaths=paths;reviewData=reviews;
   }
   async function persistPhotoPaths() {
-    var next=Object.create(null),changes=[];
-    state.files.forEach(function(f){var path=f.relPath||f.name;next[path]=f.id;if(photoPaths[path]!==f.id)changes.push([path,f.id]);});
+    var next=Object.create(null),changes=[],source=allInputFiles.length?allInputFiles:state.files;
+    source.forEach(function(f){var path=f.relPath||f.name;next[path]=f.id;if(photoPaths[path]!==f.id)changes.push([path,f.id]);});
     Object.keys(photoPaths).forEach(function(path){if(!Object.prototype.hasOwnProperty.call(next,path))changes.push([path,undefined]);});
     FastIndex.invalidate();VirtualTree48.invalidate();
     // A rename and its old-path deletion commit together.
@@ -4956,9 +5094,10 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   function matchLegacy(name) {
     if (name.includes('__xj_')) return null;
     var ext = name.slice(name.lastIndexOf('.')).toLowerCase(), base = name.slice(0,name.lastIndexOf('.'));
-    var exact = state.files.filter(function(f) { return f.name.toLowerCase() === name.toLowerCase(); });
+    var source = allInputFiles.length ? allInputFiles : state.files;
+    var exact = source.filter(function(f) { return f.name.toLowerCase() === name.toLowerCase(); });
     if (exact.length) return exact.length === 1 ? exact[0] : null;
-    var matches = state.files.filter(function(f) {
+    var matches = source.filter(function(f) {
       var e=f.name.slice(f.name.lastIndexOf('.')).toLowerCase(), b=f.name.slice(0,f.name.lastIndexOf('.'));
       return e===ext && base.startsWith(b+'_');
     });
@@ -4967,11 +5106,12 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   function outputKey51(dir,path){return dir+'/'+path;}
   function normOutput51(s){return String(s||'').normalize('NFC').replace(/\\/g,'/').toLocaleLowerCase();}
   function outputMatcher51(){
-    var paths=new Map(),stems=new Map();
+    var paths=new Map(),stems=new Map(),source=allInputFiles.length?allInputFiles:state.files;
     function add(map,key,f){if(!map.has(key))map.set(key,[]);map.get(key).push(f);}
-    for(var f of state.files){add(paths,normOutput51(f.relPath||f.name),f);add(stems,normOutput51(f.name.replace(/\.[^.]+$/,'')),f);}
+    for(var f of source){add(paths,normOutput51(f.relPath||f.name),f);add(stems,normOutput51(f.name.replace(/\.[^.]+$/,'')),f);}
     return function(entry,record){
-      if(record&&state.byName.has(record.photoId))return state.byName.get(record.photoId);
+      var known=record&&(allFilesById.get(record.photoId)||state.byName.get(record.photoId));
+      if(known)return known;
       if(record&&record.relPath){var exact=paths.get(normOutput51(record.relPath));if(exact&&exact.length===1)return exact[0];if(exact&&exact.length>1)return null;}
       var base=normOutput51(cleanName42(entry.path.split('/').pop()).replace(/\.[^.]+$/,''));
       // Match a complete original basename. Longest prefix wins; no fuzzy pole matching.
@@ -5125,7 +5265,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
     try{return await task;}finally{if(outputScanTask46===task)outputScanTask46=null;}
   }
   async function scanOutputDirectoryImpl46(options) {
-    if(!output.mainHandle||!state.files.length)return;
+    if(!output.mainHandle||!(allInputFiles.length||state.files.length))return;
     try {
       var root=output.mainHandle,generation=projectId;
       var linked=await outputLock(root,async function(){
@@ -5165,7 +5305,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
     else{state.markedFiles.delete(id);state.markedBoxedHandles.delete(id);state.markedCounts.delete(id);state.markedDefectTags.delete(id);}
     if(rows.some(function(r){return r.dir===DIR_CRIT;}))state.criticalFiles.add(id);else state.criticalFiles.delete(id);
     FastIndex.markedChanged(state.indexByName.get(id),oldCount,boxes.length);
-    if(handle)updateTreeAfterSave(id,state.markedDefectTags.get(id));else refreshTreeStats();
+    if(state.indexByName.has(id)){if(handle)updateTreeAfterSave(id,state.markedDefectTags.get(id));else refreshTreeStats();}
   }
   function makeArtifact(f,dir,kind,blob,tag,frozenName46){
     var nv=frozenName46||newNamePreview(f.id);
@@ -6238,6 +6378,8 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
     $('btnClearDirectorySearch').addEventListener('click',function(){input.value='';apply();input.focus();});
     var details=$('currentPhotoDetails');try{details.open=localStorage.getItem('xunjian_compact_details_v1')==='open';}catch(e){}
     details.addEventListener('toggle',function(){try{localStorage.setItem('xunjian_compact_details_v1',details.open?'open':'closed');}catch(e){}});
+    updateSkipInfraredBtn();
+    if(btnSkipInfrared)btnSkipInfrared.addEventListener('click',toggleSkipInfrared);
   }
 
   var centerResizeFrame44=0;
@@ -6265,7 +6407,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   }
   async function restoreDrafts50(){
     draftSignatures50=new Map();var drafts=await readRecords46('draft50:'+projectId),count=0;
-    Object.keys(drafts).forEach(function(id){var m=drafts[id];if(state.byName.has(id)&&Array.isArray(m.boxes)&&Array.isArray(m.appended)){state.meta.set(id,m);draftSignatures50.set(id,JSON.stringify(m));if(!m.saved&&(m.boxes.length||m.appended.length))count++;}});
+    Object.keys(drafts).forEach(function(id){var m=drafts[id];if((allFilesById.has(id)||state.byName.has(id))&&Array.isArray(m.boxes)&&Array.isArray(m.appended)){state.meta.set(id,m);draftSignatures50.set(id,JSON.stringify(m));if(!m.saved&&(m.boxes.length||m.appended.length))count++;}});
     if(count)setTimeout(function(){toast('已恢复 '+count+' 张照片的未导出草稿',6500);},800);
   }
   // Desktop lifecycle: finish queued disk writes and IndexedDB commits before closing.
@@ -6325,12 +6467,16 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
           await assignPhotoIdentities(entries,lastInputHandle);await sortPhotos48(entries);
           if(entries.some(function(f){return !state.meta.has(f.id);})){var savedDrafts=await readRecords46('draft50:'+projectId);entries.forEach(function(f){var m=savedDrafts[f.id];if(!state.meta.has(f.id)&&m&&Array.isArray(m.boxes)&&Array.isArray(m.appended))state.meta.set(f.id,m);});}
           var newIds=new Set(entries.map(function(f){return f.id;}));
-          state.files.forEach(function(f){if(!newIds.has(f.id)){if(hasDraft52(f.id))removedDraft=true;dropImage(f.id);}});
+          var prevAll=allInputFiles.length?allInputFiles:state.files;
+          prevAll.forEach(function(f){if(!newIds.has(f.id)){if(hasDraft52(f.id))removedDraft=true;dropImage(f.id);}});
           snap.rows.forEach(function(r){var id=photoPaths[r.path];if(force||oldRows.get(r.path)!==JSON.stringify([r.size,r.mtime,r.ctime]))dropImage(id);});
-          state.files=entries;state.byName=new Map(entries.map(function(f){return [f.id,f];}));state.indexByName=new Map(entries.map(function(f,i){return [f.id,i];}));
-          state.discoveredDirs=snap.dirs.map(function(d){return d.path;});dirRegistry.clear();dirRegistry.set('',{handle:lastInputHandle,parentHandle:null,name:lastInputHandle.name});
+          allInputFiles=entries;allDiscoveredDirs=snap.dirs.map(function(d){return d.path;});
+          allFilesById=new Map(entries.map(function(f){return [f.id,f];}));
+          var active=computeVisibleDataset(allInputFiles,allDiscoveredDirs);
+          setActiveDataset(active.files,active.dirs);
+          dirRegistry.clear();dirRegistry.set('',{handle:lastInputHandle,parentHandle:null,name:lastInputHandle.name});
           snap.dirs.forEach(function(d){dirRegistry.set(d.path,{handle:DesktopFS.revive(d.handle),parentHandle:DesktopFS.revive(d.parent),name:d.handle.name});});
-          state.index=state.indexByName.has(current)?state.indexByName.get(current):Math.min(Math.max(oldIndex,0),entries.length-1);selectionChanged=current!==curName();
+          state.index=state.indexByName.has(current)?state.indexByName.get(current):(active.files.length?Math.min(Math.max(oldIndex,0),active.files.length-1):-1);selectionChanged=current!==curName();
           inputSnapshot52={key:key,rows:snap.rows};snapshotSignatures52.set(key,snap.signature);parsedFileCache.clear();directoryCache43=new WeakMap();directorySnapshot43=null;FastIndex.invalidate();VirtualTree48.invalidate();changed=true;
         }
       }

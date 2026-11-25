@@ -9,7 +9,7 @@ test('50.3.1 performance algorithms and UI motion/theme blocks remain byte-for-b
  assert.equal(hash(blocks.get('getImage').split('\n    if(c&&c.img')[1]),manifest.getImageCacheBodySha256,'image cache algorithm changed');
  assert.match(s,/edge:1440/);assert.match(s,/var CACHE_BYTES=Math\.max\(48,Math\.min\(96,/);
 });
-test('all original inline CSS, theme backgrounds, icon and authorization resources are intact',()=>{
+test('all original inline CSS, theme backgrounds and icon resources are intact',()=>{
  const html=fs.readFileSync('app/index.html','utf8');
  assert.deepEqual([...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map(m=>hash(m[1])),manifest.styleHashes);
  for(const [file,expected]of Object.entries(manifest.unchangedFiles))assert.equal(hash(fs.readFileSync(file)),expected,file);
