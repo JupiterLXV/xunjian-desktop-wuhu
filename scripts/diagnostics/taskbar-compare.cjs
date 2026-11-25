@@ -18,18 +18,26 @@ const run=promisify(execFile);
  const environment=await powershell('Prepare');console.log('TASKBAR_ENVIRONMENT '+JSON.stringify(environment));
  const cases=[['A-original',main],['B-no-window-details',main.replace(line,'')],['C-window-appid-only',main.replace(line," if(process.platform==='win32')win.setAppDetails({appId:'local.xunjian.desktop'});")],['D-negative-resource-id',main.replace('appIconIndex:0','appIconIndex:-'+id)],['E-process-implicit-id',main.replace(line,'').replace("app.setAppUserModelId('local.xunjian.desktop');",'')]];
  const results=[];
+ // A second block checks direct EXE launches without installer-created shortcut lookup.
+ let knownFolders=null;const movedLinks=[];
+ cases.push(['F-no-shortcuts-original',main],['G-no-shortcuts-no-details',main.replace(line,'')],['H-no-shortcuts-negative-id',main.replace('appIconIndex:0','appIconIndex:-'+id)]);
  try{for(const [label,code]of cases){
+  if(label==='F-no-shortcuts-original'){
+   const desktop=path.join(knownFolders.desktop,'巡检缺陷工具.lnk'),start=path.join(knownFolders.appData,'Microsoft','Windows','Start Menu','Programs','巡检缺陷工具.lnk');
+   for(const link of [desktop,start]){try{const backup=path.join(temp,'saved-'+movedLinks.length+'.lnk');await fs.rename(link,backup);movedLinks.push({link,backup});}catch(e){if(e.code!=='ENOENT')throw e;}}
+  }
   if(label==='A-original')await fs.writeFile(archive,original);
   else{await fs.writeFile(mainFile,code);asar.uncacheAll();const staged=path.join(temp,label+'.asar');await asar.createPackage(source,staged);await fs.copyFile(staged,archive);}
   const app=await _electron.launch({executablePath:executable,args:['--user-data-dir='+path.join(temp,label)],timeout:60000});
   try{
    const page=await app.firstWindow();await page.waitForFunction(()=>!!window.XunjianDesktop);
+   if(!knownFolders)knownFolders=await app.evaluate(({app})=>({desktop:app.getPath('desktop'),appData:app.getPath('appData')}));
    const hwnd=await app.evaluate(({BrowserWindow},label)=>{const w=BrowserWindow.getAllWindows()[0];w.setTitle('Xunjian taskbar '+label);w.show();w.focus();const b=w.getNativeWindowHandle();return b.readBigUInt64LE(0).toString();},label);
    await new Promise(r=>setTimeout(r,2500));
    const result=await powershell('Capture',hwnd,label);result.iconGroupId=id;results.push(result);console.log('TASKBAR_CASE '+JSON.stringify(result));
    await fs.writeFile(path.join(proof,label+'.json'),JSON.stringify(result,null,2));
    for(const file of result.captures)console.log('TASKBAR_IMAGE '+label+' '+path.basename(file)+' '+(await fs.readFile(file)).toString('base64'));
   }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});await app.close().catch(()=>{});}
- }}finally{await fs.writeFile(archive,original);}
+ }}finally{await fs.writeFile(archive,original);for(const row of movedLinks)await fs.rename(row.backup,row.link);}
  await fs.writeFile(path.join(proof,'comparison.json'),JSON.stringify({environment,iconGroupId:id,results,visualVerificationRequiresReview:true},null,2));
 })().catch(e=>{console.error(e);process.exitCode=1;});
