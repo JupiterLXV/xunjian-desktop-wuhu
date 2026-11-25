@@ -13,18 +13,18 @@
 
   var KEY_THEME = 'xunjian_theme';
   var KEY_NO_PROMPT = 'xunjian_no_prompt';
-  var KEY_DEFECT_DICT = 'xunjian_defect_dict_v7';
+  var KEY_DEFECT_DICT = 'xunjian_defect_dict_wuhu_v1';
   var KEY_ADJACENCY = 'xunjian_custom_adjacency_v7';
   var KEY_OUTPUT_NAME = 'xunjian_output_name';
   var KEY_INPUT_NAME = 'xunjian_input_dir_name';
-  var KEY_HIDDEN = 'xunjian_hidden_defects';
+  var KEY_HIDDEN = 'xunjian_hidden_defects_wuhu_v1';
   var KEY_LEFT_WIDTH = 'xunjian_left_width';
   var KEY_RIGHT_WIDTH = 'xunjian_right_width';
   var KEY_STROKE = 'xunjian_stroke_width';
   var KEY_VIEWED = 'xunjian_viewed_photos_v3';
   var KEY_CANDIDATE_POOL = 'xunjian_candidate_pool_v8';
   var LEGACY_KEY_CANDIDATE_POOL = 'xunjian_candidate_pool_v7';
-  var KEY_CRITICAL_DEFECTS = 'xunjian_critical_defects_v1';
+  var KEY_CRITICAL_DEFECTS = 'xunjian_critical_defects_wuhu_v1';
   var KEY_NAV_PREV_KEY = 'xunjian_nav_prev_key';
   var KEY_NAV_NEXT_KEY = 'xunjian_nav_next_key';
   var KEY_NAV_SAVE_KEY = 'xunjian_nav_save_key';
@@ -97,57 +97,17 @@
     }
   }
 
-  // 38项《常规配电缺陷描述》官方模板红色危急缺陷标准集
-  var CRITICAL_DEFECTS = [
-    '_杆塔-倾斜',
-    '_杆塔-破损',
-    '_柱瓶-表面污秽，疑似有放电灼烧痕迹',
-    '_柱瓶-无扎线',
-    '_柱瓶-绑扎线松脱(导线脱落)',
-    '_柱瓶-脱落',
-    '_悬瓶-破损（损伤、断裂、脱落）',
-    '_悬瓶-表面污秽，疑似有放电灼烧痕迹',
-    '_通道-通道树障、树木茂盛',
-    '_跌落式熔断器-异物',
-    '_跌落式熔断器-有放电痕迹',
-    '_跌落式熔断器-有灼烧痕迹',
-    '_跌落式熔断器-疑似灼烧痕迹',
-    '_跌落式熔断器-熔断器跌落',
-    '_避雷器-异物',
-    '_避雷器-有放电痕迹',
-    '_避雷器-有灼烧痕迹',
-    '_避雷器-疑似灼烧痕迹',
-    '_避雷器-损坏',
-    '_柱上开关-异物',
-    '_柱上开关-有放电痕迹',
-    '_柱上开关-有灼烧痕迹',
-    '_柱上开关-疑似灼烧痕迹',
-    '_配电变压器-异物',
-    '_配电变压器-有灼烧痕迹',
-    '_配电变压器-疑似灼烧痕迹',
-    '_变压器-异物',
-    '_变压器-有灼烧痕迹',
-    '_变压器-疑似灼烧痕迹',
-    '_引线-断股、扭曲',
-    '_导线-裸导线',
-    '_导线-脱落',
-    '_导线-有灼烧痕迹',
-    '_导线-疑似灼烧痕迹',
-    '_导线-固定卡扣缺失',
-    '_导线-异物悬挂',
-    '_电缆终端-有灼烧痕迹',
-    '_电缆终端-疑似灼烧痕迹',
-    '_刀闸-瓷瓶脏污，疑似放电痕迹',
-    '_刀闸-有灼烧痕迹',
-    '_互感器-破损'
-  ];
+  // The JSON configuration is the sole source of the Wuhu rules.
+  var CRITICAL_DEFECTS = WuhuRules.filter(function(r){return r.severity==='危急';}).map(WuhuCore.tag);
+
   var CRITICAL_DEFECT_SET = new Set(CRITICAL_DEFECTS);
 
   // 危急缺陷由用户在右侧「缺陷列表」中自行维护。首次使用时默认采用系统模板中的危急缺陷；
   // 一旦用户手动调整，后续保存、导出/导入模板均以用户选择为准。
   function isCriticalDefectTag(tag) {
     if (!tag) return false;
-    return criticalDefects.has(String(tag).trim());
+    var rule62=WuhuCore.findRule(WuhuRules,String(tag).trim());
+    return rule62?rule62.severity==='危急':criticalDefects.has(String(tag).trim());
   }
 
   function saveCriticalDefects() {
@@ -155,22 +115,11 @@
     sideDictVersion++;
   }
 
-  function loadCriticalDefects() {
-    try {
-      var raw = localStorage.getItem(KEY_CRITICAL_DEFECTS);
-      if (raw) {
-        var arr = JSON.parse(raw);
-        if (Array.isArray(arr)) {
-          criticalDefects = new Set(arr.map(function (x) { return String(x).trim(); }).filter(Boolean));
-          return;
-        }
-      }
-    } catch (e) {}
-    criticalDefects = new Set(CRITICAL_DEFECTS);
-  }
+  function loadCriticalDefects(){criticalDefects=new Set(CRITICAL_DEFECTS);}
 
   function toggleCriticalDefect(tag) {
     var t = String(tag || '').trim();
+    if (WuhuCore.findRule(WuhuRules,t)){toast('芜湖规则等级由配置确定，请选择对应等级的完整规则');return;}
     if (!t) return;
     if (criticalDefects.has(t)) {
       criticalDefects.delete(t);
@@ -185,195 +134,7 @@
     updateHud();
   }
 
-  // 默认严格按《常规配电缺陷描述》标准的设备部件/位置归类字典（共24大类，严格遵循表格标签命名）
-  var DEFAULT_DEFECT_DICT = {
-    '金具': [
-      '_金具-U型挂环-缺销钉',
-      '_金具-U型挂环-销钉即将脱出',
-      '_金具-U型挂环-螺栓即将脱出',
-      '_金具-U型挂环-螺母缺失',
-      '_金具-U型挂环-螺母松动',
-      '_金具-直角挂板-缺销钉',
-      '_金具-直角挂板-销钉即将脱出',
-      '_金具-直角挂板-螺栓即将脱出',
-      '_金具-直角挂板-螺母缺失',
-      '_金具-直角挂板-螺母松动',
-      '_金具-碗头挂板-缺销钉',
-      '_金具-碗头挂板-销钉即将脱出',
-      '_金具-碗头挂板-螺栓即将脱出',
-      '_金具-碗头挂板-螺母缺失',
-      '_金具-碗头挂板-螺母松动',
-      '_金具-平行挂板-缺销钉',
-      '_金具-平行挂板-销钉即将脱出',
-      '_金具-平行挂板-螺栓即将脱出',
-      '_金具-平行挂板-螺母缺失',
-      '_金具-平行挂板-螺母松动',
-      '_金具-球头挂环-缺销钉',
-      '_金具-球头挂环-销钉即将脱出',
-      '_金具-球头挂环-螺栓即将脱出',
-      '_金具-球头挂环-螺母缺失',
-      '_金具-球头挂环-螺母松动'
-    ],
-    '杆塔': [
-      '_杆塔-异物',
-      '_杆塔-倾斜',
-      '_杆塔-树木包围',
-      '_杆塔-与树木安全距离不足',
-      '_杆塔-裂纹',
-      '_杆塔-破损',
-      '_杆塔-鸟窝',
-      '_杆塔-藤蔓攀爬'
-    ],
-    '塔基': [
-      '_塔基-杂物堆积',
-      '_塔基-立柱水淹'
-    ],
-    '塔头': [
-      '_塔头-混凝土杆顶部风化露筋',
-      '_塔头-鸟窝'
-    ],
-    '杆号牌': [
-      '_杆号牌-缺失',
-      '_杆号牌-不对应',
-      '_杆号牌-模糊',
-      '_杆号牌-遮挡',
-      '_杆号牌-损坏'
-    ],
-    '横担': [
-      '_横担-歪斜',
-      '_横担-有鸟窝',
-      '_横担-有树枝',
-      '_横担-有异物'
-    ],
-    '抱箍': [
-      '_抱箍-缺螺栓',
-      '_抱箍-松动'
-    ],
-    '附属设施': [
-      '_附属设施-防鸟设施损坏'
-    ],
-    '柱瓶': [
-      '_柱瓶-歪斜',
-      '_柱瓶-破损',
-      '_柱瓶-扎线不规范',
-      '_柱瓶-缺失',
-      '_柱瓶-表面脏污',
-      '_柱瓶-表面污秽，疑似有放电灼烧痕迹',
-      '_柱瓶-无扎线',
-      '_柱瓶-绑扎线松脱(导线脱落)',
-      '_柱瓶-脱落'
-    ],
-    '悬瓶': [
-      '_悬瓶-轻微破损',
-      '_悬瓶-破损（损伤、断裂、脱落）',
-      '_悬瓶-表面脏污',
-      '_悬瓶-表面污秽，疑似有放电灼烧痕迹',
-      '_悬瓶-与导线安全距离不足'
-    ],
-    '通道': [
-      '_通道-导线与树木安全距离不足',
-      '_通道-通道树障、树木茂盛',
-      '_通道-弧垂过低',
-      '_通道-施工现场杂物堆积'
-    ],
-    '跌落式熔断器': [
-      '_跌落式熔断器-异物',
-      '_跌落式熔断器-绝缘护套缺失',
-      '_跌落式熔断器-绝缘外露（松脱、损坏）',
-      '_跌落式熔断器-有放电痕迹',
-      '_跌落式熔断器-有灼烧痕迹',
-      '_跌落式熔断器-疑似灼烧痕迹',
-      '_跌落式熔断器-表面污秽',
-      '_跌落式熔断器-熔管跌落',
-      '_跌落式熔断器-熔管缺失',
-      '_跌落式熔断器-熔断器跌落'
-    ],
-    '避雷器': [
-      '_避雷器-异物',
-      '_避雷器-绝缘护套缺失',
-      '_避雷器-绝缘外露（松脱、损坏）',
-      '_避雷器-有放电痕迹',
-      '_避雷器-有灼烧痕迹',
-      '_避雷器-疑似灼烧痕迹',
-      '_避雷器-表面污秽',
-      '_避雷器-脱扣脱落',
-      '_避雷器-损坏'
-    ],
-    '柱上开关': [
-      '_柱上开关-异物',
-      '_柱上开关-绝缘护套缺失',
-      '_柱上开关-绝缘外露（松脱、损坏）',
-      '_柱上开关-有放电痕迹',
-      '_柱上开关-有灼烧痕迹',
-      '_柱上开关-疑似灼烧痕迹',
-      '_柱上开关-表面污秽',
-      '_柱上开关-铭牌缺失'
-    ],
-    '配电变压器': [
-      '_配电变压器-异物',
-      '_配电变压器-绝缘护套缺失',
-      '_配电变压器-绝缘外露（松脱、损坏）',
-      '_配电变压器-有灼烧痕迹',
-      '_配电变压器-疑似灼烧痕迹',
-      '_配电变压器-表面污秽',
-      '_配电变压器-漏油',
-      '_配电变压器-植被包围、藤蔓缠绕',
-      '_配电变压器-锈蚀'
-    ],
-    '引线': [
-      '_引线-断股、扭曲',
-      '_引线-有灼烧痕迹',
-      '_引线-疑似灼烧痕迹',
-      '_引线-存在裸露、需绝缘包裹',
-      '_引线-绝缘保护套老化、破损'
-    ],
-    '导线': [
-      '_导线-裸导线',
-      '_导线-松股',
-      '_导线-断股',
-      '_导线-脱落',
-      '_导线-有灼烧痕迹',
-      '_导线-疑似灼烧痕迹',
-      '_导线-固定卡扣安装不牢固',
-      '_导线-固定卡扣缺失',
-      '_导线-绝缘层破损、绝缘外露',
-      '_导线-异物悬挂'
-    ],
-    '线夹': [
-      '_线夹-有灼烧痕迹',
-      '_线夹-绝缘保护套缺失',
-      '_线夹-绝缘保护套损坏'
-    ],
-    '接地环': [
-      '_接地环-绝缘护罩缺失',
-      '_接地环-绝缘外露'
-    ],
-    '接地引下线': [
-      '_接地引下线-断开'
-    ],
-    '电缆终端': [
-      '_电缆终端-绝缘护罩缺失',
-      '_电缆终端-绝缘外露',
-      '_电缆终端-有灼烧痕迹',
-      '_电缆终端-疑似灼烧痕迹'
-    ],
-    '刀闸': [
-      '_刀闸-绝缘护套缺失',
-      '_刀闸-绝缘外露（松脱、损坏）',
-      '_刀闸-瓷瓶脏污，疑似放电痕迹',
-      '_刀闸-有灼烧痕迹',
-      '_刀闸-瓷瓶破损',
-      '_刀闸-刀片脱落'
-    ],
-    '互感器': [
-      '_互感器-绝缘护套缺失',
-      '_互感器-绝缘外露（松脱、损坏）',
-      '_互感器-破损'
-    ],
-    '拉线': [
-      '_拉线-楔形挂板-销钉缺失'
-    ]
-  };
+  var DEFAULT_DEFECT_DICT = WuhuCore.dictionary(WuhuRules);
 
   // 默认电力设备部件相近关联推荐图谱 (Adjacent / Related Equipment on Pole)
   var DEFAULT_LOCATION_ADJACENCY = {
@@ -810,127 +571,19 @@
 
   var towerRegex = /(?:#\s*\d+(?:[-~_]\d+|[A-Za-z])?(?:号?[杆塔基]|#)?|\d+\s*#\s*(?:号?[杆塔基])(?!(?:支线|主线|联络线|专线|回线|线路|线))|\d+\s*#(?![\u4e00-\u9fa5\u2160-\u217fA-Za-z0-9_#]*(?:支线|主线|联络线|专线|回线|线路|线))|\d+\s*号(?:杆塔|[杆塔基])|\d+\s*(?:杆塔|[杆塔基])|第\s*\d+(?:[-~_]\d+|[A-Za-z])?\s*号?[杆塔基]|\d+[-~_]\d+(?:号?[杆塔基]|跨|档)|(?:[PTGNptgn]|Tower|Pole)\s*[-_]?\s*\d+(?:[-~_]\d+|[A-Za-z])?|^\d+(?:[-_]\d+)?$)/i;
 
-  function parseDirToLineAndTower(dirPath, rootLineName) {
-    var rel = String(dirPath || '').replace(/\\/g, '/');
-    var parts = rel.split('/').filter(Boolean);
-    var line = '';
-    var tower = '';
-    var rootName = rootLineName || savedInputName || (lastInputHandle && lastInputHandle.name) || '默认线路';
-
-    if (parts.length >= 2) {
-      var lastDir = parts[parts.length - 1].trim();
-      var parentDir = parts[parts.length - 2].trim();
-      var isLastTower = towerRegex.test(lastDir);
-      var isParentTower = towerRegex.test(parentDir);
-      if (isLastTower) {
-        tower = lastDir;
-        line = parentDir;
-      } else if (isParentTower) {
-        tower = parentDir;
-        line = parts.length >= 3 ? parts[parts.length - 3].trim() : rootName;
-      } else {
-        tower = lastDir;
-        line = parentDir;
-      }
-    } else if (parts.length === 1) {
-      tower = parts[0].trim();
-      line = rootName;
-    } else {
-      tower = '默认杆塔';
-      line = rootName;
-    }
-    var towerNum = 999999;
-    var numM = tower.match(/\d+/);
-    if (numM) towerNum = parseInt(numM[0], 10);
-    return { prefix: line || '默认线路', tower: tower || '默认杆塔', towerNum: towerNum };
+  function parseDirToLineAndTower(dirPath,rootLineName){
+    return _rawParseFilePrefixAndLocation('',String(dirPath).replace(/[\\/]+$/,'')+'/photo.jpg');
   }
 
-  function _rawParseFilePrefixAndLocation(filename, relPath) {
-    var rawName = String(filename || '');
-    var base = rawName.replace(/\.[^.]+$/, '');
-    var rel = String(relPath || filename || '').replace(/\\/g, '/');
-    var parts = rel.split('/').filter(Boolean);
-    var dirParts = parts.slice(0, -1);
 
-    var line = '';
-    var tower = '';
-    var towerNum = 999999;
-    var rootLineName = savedInputName || (lastInputHandle && lastInputHandle.name) || '默认线路';
-
-    // 1. 核心首选：直接以实际文件夹层级结构为准（用户现场规范：线路文件夹 / #001杆塔文件夹 / 照片）
-    if (dirParts.length >= 2) {
-      var lastDir = dirParts[dirParts.length - 1].trim();
-      var parentDir = dirParts[dirParts.length - 2].trim();
-      var isLastTower = towerRegex.test(lastDir);
-      var isParentTower = towerRegex.test(parentDir);
-      if (isLastTower) {
-        tower = lastDir;
-        line = parentDir;
-      } else if (isParentTower) {
-        tower = parentDir;
-        line = dirParts.length >= 3 ? dirParts[dirParts.length - 3].trim() : rootLineName;
-      } else {
-        tower = lastDir;
-        line = parentDir;
-      }
-    } else if (dirParts.length === 1) {
-      tower = dirParts[0].trim();
-      line = rootLineName;
-    }
-
-    // 2. 若目录未体现杆塔，从文件名安全提取杆塔
-    if (!tower || tower === '默认杆塔') {
-      var isCameraSeq = /^(?:DJI|IMG|DSC|DCIM|PANO|VID|SCREENSHOT|QQ图片|微信图片)/i.test(base);
-      var segs = base.split(/[_\-—\s]+/).filter(Boolean);
-      for (var j = 0; j < segs.length; j++) {
-        var s = segs[j];
-        var stm = s.match(towerRegex);
-        if (stm && (stm[0] === s || /^[#PTGN\d]/i.test(s))) {
-          tower = stm[0].replace(/\s+/g, '');
-          break;
-        } else if (!isCameraSeq && /^\d+$/.test(s) && (j === 0 || j === 1)) {
-          var n = parseInt(s, 10);
-          tower = '#' + (s.length >= 3 ? s : (n < 10 ? '0' + n : n));
-          break;
-        }
-      }
-      if (!tower) {
-        var rawTm = base.match(towerRegex);
-        if (rawTm) tower = rawTm[0].replace(/\s+/g, '');
-      }
-    }
-
-    // 3. 若仍无线路，检查文件名
-    if (!line || line === '默认线路') {
-      var lineVolRegex = /(?:(?:10|35|110|220|500|750|1000)\s*(?:k|kV|KV|千伏)[\u4e00-\u9fa5\u2160-\u217fA-Za-z0-9_#\-\(\)（）]*?(?:支线|主线|联络线|专线|回线|备用线|电缆线|线路|线|工程))/i;
-      var lineGenRegex = /[\u4e00-\u9fa5\u2160-\u217fA-Za-z0-9_#\-\(\)（）]{2,}?(?:支线|主线|联络线|专线|回线|备用线|电缆线|线路|工程)/;
-      var cleanForLine = base.replace(/(?:导线|避雷线|接地线|地线|引流线|拉线|跳线)(?:线夹|绑带|连接)?/g, '');
-      var fLm = cleanForLine.match(lineVolRegex) || cleanForLine.match(lineGenRegex);
-      if (fLm) line = fLm[0].trim();
-      else line = rootLineName;
-    }
-
-    if (tower) {
-      var numM = tower.match(/\d+/);
-      if (numM) towerNum = parseInt(numM[0], 10);
-    } else {
-      tower = '默认杆塔';
-    }
-
-    // 4. 提取位置部件 loc（去掉线路和杆塔后剩余的纯部件文字，如 大号侧通道、杆号牌）
-    var locClean = base;
-    if (line && line !== '默认线路') locClean = locClean.split(line).join('');
-    if (tower && tower !== '默认杆塔') locClean = locClean.split(tower).join('');
-    locClean = locClean.replace(/^10k[Vv]?[\u4e00-\u9fa5\u2160-\u217f0-9_#\-]+?__/i, '');
-    locClean = locClean.replace(/^[_\-—\s#]+|[_\-—\s#]+$/g, '').trim();
-
-    return {
-      prefix: line || '默认线路',
-      tower: tower,
-      towerNum: towerNum,
-      loc: locClean || base
-    };
+  function sourceLocation62(relPath){
+    return WuhuCore.parseLocation(relPath,lastInputHandle?.sourcePath||lastInputHandle?.name||savedInputName);
   }
+  function _rawParseFilePrefixAndLocation(filename,relPath){
+    var location=sourceLocation62(relPath||filename),pole=location.pole||'待确认杆号';
+    return {prefix:location.valid?location.line+'-'+location.branch:'待确认线路',tower:pole,towerNum:Number(pole.match(/\d+/)?.[0]||999999),loc:'',branch:location.branch,line:location.line};
+  }
+
 
   /* ================= 打开文件夹 ================= */
 
@@ -948,7 +601,7 @@
         for await(var pair of job.h.entries()){
           var name=pair[0],handle=pair[1];
           if(handle.kind==='directory'){
-            if([DIR_BOX,DIR_ORIG,DIR_CRIT].includes(name)||name.startsWith('.'))continue;
+            if(OUTPUT_SCAN_DIRS.includes(name)||name.startsWith('.'))continue;
             var next=job.p+name+'/';state.discoveredDirs.push(next);queue.push({h:handle,p:next,parent:job.h});
           }else if(handle.kind==='file'&&IMG_EXTS.includes(name.slice(name.lastIndexOf('.')).toLowerCase())){
             out.push({name:name,handle:handle,file:null,mime:mimeOf(name),relPath:job.p+name,group:extractGroup(name)});
@@ -1119,7 +772,7 @@
     // 彻底过滤掉任何属于「缺陷圈示图」或「缺陷原图」目录的图片文件，确保列表全为真正独立的待检原图
     entries = entries.filter(function (e) {
       var p = (e.relPath || e.name || '');
-      return p.indexOf('缺陷圈示图') < 0 && p.indexOf('缺陷原图') < 0 && p.indexOf('危急缺陷') < 0;
+      return !p.replace(/\\/g,'/').split('/').some(function(v){return WuhuCore.OUTPUT_DIRS.concat(WuhuCore.LEGACY_DIRS).includes(v);});
     });
 
     if (!state.discoveredDirs || state.discoveredDirs.length === 0) {
@@ -1270,6 +923,8 @@
       if (selectedIndex >= 0 && selectedIndex < boxes.length && selectedIndex >= bakedCount) drawHandles(overlayCtx, boxes[selectedIndex], v);
     }
     if (mode === 'draw' && dragBox) { var n = normalize(dragBox); overlayCtx.strokeRect(n.x * v.s, n.y * v.s, n.w * v.s, n.h * v.s); }
+    var crop62=currentCrop62();if(crop62){overlayCtx.save();overlayCtx.strokeStyle='#ffffff';overlayCtx.lineWidth=1.4/v.zoom;overlayCtx.setLineDash([7/v.zoom,5/v.zoom]);overlayCtx.strokeRect(crop62.x*v.s,crop62.y*v.s,crop62.w*v.s,crop62.h*v.s);overlayCtx.restore();}
+    scheduleSmallPreview62();
   }
 
   function drawHandles(ctx, b, v) {
@@ -1371,6 +1026,7 @@
 
 
   function updateHud() {
+    scheduleSmallPreview62();
     if(window.desktopAPI)scheduleDrafts50();
     updateCompactPhoto43();
     updateReviewUI();if(SaveQueue48)SaveQueue48.paint();
@@ -1429,7 +1085,7 @@
         var isViewingBoxed = cImg && cImg.isBoxed;
         var toggleBtn = '<button id="btnToggleBoxedView" class="mini-tool-btn" type="button" style="color:' + (isViewingBoxed ? 'var(--text)' : 'var(--accent)') + ';font-size:10px;padding:0 5px;height:18px;margin-left:4px;display:inline-flex;align-items:center" title="' + (isViewingBoxed ? '当前显示为缺陷圈示图，点击查看纯净原图' : '当前显示为原图，点击切换至缺陷圈示图') + '">' + (isViewingBoxed ? '查看原图' : '查看圈示图') + '</button>';
         if (!state.markedBoxedHandles.has(f.id)) toggleBtn = '';
-        sideCurMarkedStatus.innerHTML = '<span style="color:var(--accent);font-weight:600">已标记' + (isViewingBoxed ? ' (圈示图)' : ' (原图)') + '</span>' + toggleBtn + ' <button id="btnCancelCurrentMarked" class="mini-tool-btn" type="button" style="color:var(--accent);font-size:10px;padding:0 5px;height:18px;margin-left:4px;border-color:var(--accent);display:inline-flex;align-items:center;gap:3px" title="取消当前图片的缺陷标记，并从输出目录中撤回对应的缺陷圈示图、缺陷原图及危急缺陷图片"><svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" stroke-width="2" fill="none" style="display:block"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>取消已标</button>';
+        sideCurMarkedStatus.innerHTML = '<span style="color:var(--accent);font-weight:600">已标记' + (isViewingBoxed ? ' (圈示图)' : ' (原图)') + '</span>' + toggleBtn + ' <button id="btnCancelCurrentMarked" class="mini-tool-btn" type="button" style="color:var(--accent);font-size:10px;padding:0 5px;height:18px;margin-left:4px;border-color:var(--accent);display:inline-flex;align-items:center;gap:3px" title="取消当前图片的缺陷标记，并从输出目录中撤回对应的大小图及已有旧版成果"><svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" stroke-width="2" fill="none" style="display:block"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>取消已标</button>';
         var cancelBtn = document.getElementById('btnCancelCurrentMarked');
         if (cancelBtn) {
           cancelBtn.onclick = function () {
@@ -1441,6 +1097,7 @@
           toggleEl.onclick = function () { return withIO(async function () {
             var curCached = state.cache.get(f.id);
             var wantClean = curCached && curCached.isBoxed;
+            getMeta(f.id).viewBoxed62=!wantClean;
             loadingEl.style.display = '';
             try {
               var newC = await getImage(state.index, wantClean);
@@ -1505,13 +1162,13 @@
     if (!state.files || state.files.length === 0) return false;
     var hasArtifacts = state.files.some(function (f) {
       var p = (f.relPath || f.name || '');
-      return p.indexOf('缺陷圈示图') >= 0 || p.indexOf('缺陷原图') >= 0;
+      return p.split('/').some(function(v){return WuhuCore.OUTPUT_DIRS.concat(WuhuCore.LEGACY_DIRS).includes(v);});
     });
     if (!hasArtifacts) return false;
 
     state.files = state.files.filter(function (f) {
       var p = (f.relPath || f.name || '');
-      return p.indexOf('缺陷圈示图') < 0 && p.indexOf('缺陷原图') < 0;
+      return !p.split('/').some(function(v){return WuhuCore.OUTPUT_DIRS.concat(WuhuCore.LEGACY_DIRS).includes(v);});
     });
     state.byName = new Map();
     state.indexByName = new Map();
@@ -1679,7 +1336,7 @@
 
     var confirmed = await showConfirmDialog(
       '取消标记确认',
-      '确定要取消「' + displayName(origName) + '」的缺陷标记，并将对应的圈示图、原图和危急缺陷图移入成果回收站吗？'
+      '确定要取消「' + displayName(origName) + '」的缺陷标记，并将对应的大小图及已有旧版成果移入成果回收站吗？'
     );
     if (!confirmed) return;
 
@@ -2499,28 +2156,18 @@
 
   /* ================= 右侧面板：保持简洁纯粹的缺陷分类与命名标签 ================= */
 
-  function newNamePreview(photoId48) {
-    var name = photoId48 || curName();
-    if (!name) return { base: '', ext: '', appended: [], full: '' };
-    var m = getMeta(name);
-    var visibleName = displayName(name);
-    var ext = visibleName.slice(visibleName.lastIndexOf('.'));
-    var base = visibleName.slice(0, visibleName.lastIndexOf('.'));
-
-    var appended = m.appended || [];
-    if (appended.length === 0 && !m.isSecondaryEdit && !m.tagsCleared) {
-      var savedTag = getDefectTagsForFile(name);
-      if (savedTag && !base.endsWith(savedTag)) {
-        var tags = savedTag.split(/(?=_)/).filter(Boolean);
-        if (tags.length > 0) {
-          m.appended = tags.slice();
-          if (!m.boxes.length) m.saved = true;
-          appended = m.appended;
-        }
-      }
-    }
-    return { base: base, ext: ext, appended: appended, full: base + appended.join('') + ext };
+  function locationFor62(id){
+    var f=state.byName.get(id),m=getMeta(id);
+    return m.location62||sourceLocation62(f?.relPath||f?.name||'');
   }
+  function newNamePreview(photoId48){
+    var id=photoId48||curName();if(!id)return {base:'',ext:'.jpg',appended:[],full:''};
+    var m=getMeta(id),location=locationFor62(id),rule=WuhuCore.findRule(WuhuRules,m.appended[0]);
+    var base=[location.line||'[待确认线路]',location.branch||'[待确认主支线]',location.pole||'[待确认杆号]'].join('-');
+    var full=base+(rule?'-'+[rule.component,rule.description,rule.severity].join('-'):'')+'.jpg';
+    return {base:base,ext:'.jpg',appended:m.appended.slice(),full:full,location:Object.assign({},location),rule:rule};
+  }
+
 
   function updateTreeCurrentDefectTag(name, dTag) {
     if (!pathTree) return;
@@ -2542,27 +2189,19 @@
     }
   }
 
-  function appendDefect(text) {
-    if(editLocked48())return;
-    var name = curName();
-    if (!name) return;
-    var t = String(text || '');
-    if (t.charAt(0) !== '_') t = '_' + t;
-    var m = getMeta(name);
-    m.tagsCleared = false;
-    if (m.appended.indexOf(t) >= 0) { toast('已追加过该缺陷'); return; }
-    m.appended.push(t);
-    m.saved = false;
-    m.history.push({ type: 'name', tag: t });
-    var allTags = m.appended.join('');
-    if (state.markedDefectTags) {
-      state.markedDefectTags.set(name, allTags);
-    }
-    renderSide();
-    updateTreeCurrentDefectTag(name, allTags);
-    updateHud();
-    flashItem(t);
+  function appendDefect(text){
+    if(editLocked48()||!curName())return;
+    var rule=WuhuCore.findRule(WuhuRules,text);
+    if(!rule){toast('请选择芜湖配置中的完整缺陷规则');return;}
+    var m=getMeta(curName());
+    if(m.appended.length===1&&m.appended[0]===text)return;
+    m.history.push({type:'rule',previous:m.appended.slice()});
+    m.appended=[text];m.tagsCleared=false;m.saved=false;
+    state.markedDefectTags.set(curName(),text);
+    renderSide(true);updateTreeCurrentDefectTag(curName(),text);updateHud();flashItem(text);
   }
+
+
   function flashItem(t) {
     var els = sideScroll.querySelectorAll('.def-item .t');
     for (var i = 0; i < els.length; i++) {
@@ -2578,15 +2217,16 @@
     try { localStorage.setItem(KEY_DEFECT_DICT, JSON.stringify(defectDict)); } catch (e) {}
     sideDictVersion++;
   }
-  function loadDefectDict() {
-    try {
-      var raw = localStorage.getItem(KEY_DEFECT_DICT);
-      if (raw) {
-        var obj = JSON.parse(raw);
-        if (obj && typeof obj === 'object') defectDict = obj;
-      }
-    } catch (e) {}
+  function loadDefectDict(){
+    var canonical=WuhuCore.dictionary(WuhuRules),saved;
+    try{saved=JSON.parse(localStorage.getItem(KEY_DEFECT_DICT)||'null');}catch(e){}
+    if(saved&&typeof saved==='object')Object.keys(canonical).forEach(function(key){
+      var old=Array.isArray(saved[key])?saved[key]:[];
+      canonical[key]=old.filter(function(t,i){return canonical[key].includes(t)&&old.indexOf(t)===i;}).concat(canonical[key].filter(function(t){return !old.includes(t);}));
+    });
+    defectDict=canonical;
   }
+
 
   function saveAdjacency() {
     try { localStorage.setItem(KEY_ADJACENCY, JSON.stringify(locationAdjacency)); } catch (e) {}
@@ -2631,6 +2271,7 @@
   var sideDictVersion = 1;
 
   function renderSide(force) {
+    scheduleSmallPreview62();
     clearTimeout(sideTimer38);sideScroll.inert=false;
     var name = curName();
     if (!name) {
@@ -2649,14 +2290,14 @@
         var aTag = pv.appended[ti];
         var isCrit = isCriticalDefectTag(aTag);
         if (isCrit) isAnyCritical = true;
-        tagsHtml += '<span class="preview-tag ' + (isCrit ? 'is-crit-tag' : '') + '" data-idx="' + ti + '" data-tag="' + esc(aTag) + '" title="点击直接撤回/移除此缺陷命名" ' + (isCrit ? 'style="border-color:rgba(220,38,38,0.5);color:#dc2626;background:rgba(220,38,38,0.08)"' : '') + '>' + esc(aTag) + '<span class="tag-del-x">✕</span></span>';
+        tagsHtml += '<span class="preview-tag ' + (isCrit ? 'is-crit-tag' : '') + '" data-idx="' + ti + '" data-tag="' + esc(aTag) + '" title="点击直接撤回/移除此缺陷命名" ' + (isCrit ? 'style="border-color:rgba(220,38,38,0.5);color:#dc2626;background:rgba(220,38,38,0.08)"' : '') + '>' + esc(aTag.replace(/^_/,'-')) + '<span class="tag-del-x">✕</span></span>';
       }
     }
 
     isAnyCritical = effectiveCritical(name);
-    var critBadgeHtml = isAnyCritical ? '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(220,38,38,0.15);color:#dc2626;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:3px;border:1px solid rgba(220,38,38,0.35);margin-left:6px" title="依据本图人工判定或标签默认；主保存管理自动副本，独立保存的危急图片另行保留">⚠️ 本图判为危急（主保存另存副本）</span>' : '';
+    var critBadgeHtml = false ? '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(220,38,38,0.15);color:#dc2626;font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:3px;border:1px solid rgba(220,38,38,0.35);margin-left:6px" title="依据本图人工判定或标签默认；芜湖规则等级进入文件名，成果保存到大图、小图">⚠️ 本图判为危急（保存到大小图）</span>' : '';
 
-    var criticalSavedBadgeHtml = (state.criticalFiles && state.criticalFiles.has(name)) ? '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(31,122,60,0.15);color:var(--ok);font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:3px;border:1px solid rgba(31,122,60,0.35);margin-left:6px" title="已存在危急成果；自动副本与独立保存分别管理">✓ 已存危急缺陷</span>' : '';
+    var criticalSavedBadgeHtml = (state.criticalFiles && state.criticalFiles.has(name)) ? '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(31,122,60,0.15);color:var(--ok);font-size:10.5px;font-weight:700;padding:1px 6px;border-radius:3px;border:1px solid rgba(31,122,60,0.35);margin-left:6px" title="旧版危急成果仍保留，可在成果管理中查看">✓ 已存危急缺陷</span>' : '';
 
     var disp = '<span class="preview-base" title="' + esc(pv.base) + '">' + esc(pv.base) + '</span>' + (tagsHtml || '') + '<span class="preview-ext">' + esc(pv.ext) + '</span>' + critBadgeHtml + criticalSavedBadgeHtml;
     if (previewEl) previewEl.innerHTML = disp;
@@ -2705,7 +2346,7 @@
     var html = '';
     // 缺陷分类区头部：直接集成「修改推荐规则」与「新建分类」
     html += '<div class="sec-title">';
-    html += '  <span title="点击缺陷标签右侧的⚠按钮，可自行设置/取消危急缺陷属性">缺陷分类 <span style="font-size:10px;color:var(--muted);font-weight:400">（⚠ 可设置危急）</span></span>';
+    html += '  <span title="等级来自芜湖配置；同一缺陷的不同等级分别选择">缺陷分类 <span style="font-size:10px;color:var(--muted);font-weight:400">（一张照片选择一条）</span></span>';
     html += '  <div style="display:flex;align-items:center;gap:4px">';
     html += '    <button id="btnSideConfigRec" class="mini-tool-btn" type="button" title="进入推荐规则与分类管理二级界面" style="color:var(--accent);font-weight:600;height:22px">修改推荐规则</button>';
     html += '    <button id="btnSideAddCat" class="mini-tool-btn" type="button" title="新建缺陷分类" style="height:22px">新建分类</button>';
@@ -2769,21 +2410,13 @@
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
 
-  function defItemHtml(t, cat) {
-    var isCrit = isCriticalDefectTag(t);
-    var critBadge = isCrit ? '<span class="critical-indicator" title="用户已将此缺陷设为危急缺陷，保存时会额外输出至「危急缺陷」目录" style="display:inline-flex;align-items:center;justify-content:center;background:rgba(239,68,68,0.14);color:#dc2626;font-size:10px;font-weight:700;padding:1px 4px;border-radius:3px;margin-right:4px;border:1px solid rgba(239,68,68,0.35);flex-shrink:0">危急</span>' : '';
-    var textStyle = isCrit ? 'color:#dc2626;font-weight:600' : '';
-    var criticalBtn = '<button class="action-icon-btn critical-toggle-btn ' + (isCrit ? 'active' : '') + '" title="' + (isCrit ? '取消【' + esc(t) + '】的危急缺陷属性' : '将【' + esc(t) + '】设为危急缺陷') + '" data-category="' + esc(cat) + '" data-text="' + esc(t) + '" aria-label="' + (isCrit ? '取消危急缺陷' : '设为危急缺陷') + '">' + (isCrit ? '✓' : '⚠') + '</button>';
-    return '<div class="def-item ' + (isCrit ? 'is-critical-item' : '') + '" draggable="true" data-category="' + esc(cat) + '" data-text="' + esc(t) + '" title="' + (isCrit ? '【危急缺陷】' : '') + '点击应用此标签；按住可拖动排序或移动">' +
-      critBadge +
-      '<span class="t" style="' + textStyle + '">' + esc(t) + '</span>' +
-      '<div class="item-actions">' +
-      criticalBtn +
-      '  <button class="action-icon-btn edit-tag-btn" title="编辑修改此标签" data-category="' + esc(cat) + '" data-text="' + esc(t) + '">' + ICONS.edit + '</button>' +
-      '  <button class="action-icon-btn del-btn del-tag-btn" title="删除/隐藏此标签" data-category="' + esc(cat) + '" data-text="' + esc(t) + '">' + ICONS.close + '</button>' +
-      '</div>' +
-      '</div>';
+  function defItemHtml(t,cat){
+    var rule=WuhuCore.findRule(WuhuRules,t);
+    if(!rule)return '';
+    var selected=curName()&&getMeta(curName()).appended[0]===t;
+    return '<div class="def-item '+(rule.severity==='危急'?'is-critical-item':'')+'" draggable="true" data-category="'+esc(cat)+'" data-text="'+esc(t)+'" title="点击选择此完整规则'+(rule.note?'；'+esc(rule.note):'')+'"'+(selected?' style="outline:1px solid var(--accent)"':'')+'><span class="t">'+esc(rule.description)+' · '+esc(rule.severity)+(rule.note?'<small class="rule-note">'+esc(rule.note)+'</small>':'')+'</span></div>';
   }
+
 
   /* ---- 隐藏/恢复缺陷 ---- */
   function isHidden(t) { return !!hiddenDefects[t]; }
@@ -4035,7 +3668,7 @@
     });
   }
 
-  /* ================= 自动双目录保存：输出一张未圈原图到「缺陷原图」，输出一张已圈图到「缺陷圈示图」 ================= */
+  /* ================= 双目录保存：完整标注大图与局部标注小图，共享同一次事务 ================= */
 
   function updateOutputButtonText() {
     var name = (output.mainHandle ? output.mainHandle.name : '') || output.mainName || (lastOutputHandle ? lastOutputHandle.name : '') || '';
@@ -4207,14 +3840,10 @@
   var CRIT_ICON_DEFAULT = '<svg id="btnCriticalIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="display:block"><path d="M12 2 1 21h22L12 2zm0 5.6 7.2 12.4H4.8L12 7.6zM11 10h2v5h-2v-5zm0 6.5h2v2h-2v-2z"/></svg>';
   var CRIT_ICON_SAVED = '<svg id="btnCriticalIcon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.6" fill="none" style="display:block"><path d="M4 12.5l5 5L20 7"/></svg>';
 
-  function updateCriticalButtonState(isSaved) {
-    if (!btnCritical) return;
-    btnCritical.classList.toggle('saved', !!isSaved);
-    btnCritical.innerHTML = (isSaved ? CRIT_ICON_SAVED : CRIT_ICON_DEFAULT) +
-      '<span id="btnCriticalLabel" class="label">' + (isSaved ? '已存危急' : '危急缺陷') + '</span>';
-    btnCritical.title = isSaved
-      ? '已独立保存到「危急缺陷」文件夹。再次点击将用当前圈示图覆盖更新该文件'
-      : '独立保存危急缺陷：仅将当前圈示图保存到「危急缺陷」文件夹，普通保存不会删除它；取消整张照片的缺陷标记时会一并撤回';
+  function updateCriticalButtonState(isSaved){
+    if(!btnCritical)return;
+    btnCritical.innerHTML=CRIT_ICON_DEFAULT+'<span id="btnCriticalLabel" class="label">保存危急大小图</span>';
+    btnCritical.title='选择危急等级规则后，成对保存至大图、小图；不另建等级目录';
   }
 
   // saveCriticalOnly: implementation in i35 reliability section.
@@ -4254,6 +3883,8 @@
     if (!name) { toast('未打开任何图片'); return; }
     var m = getMeta(name);
     m.boxes = [];
+    m.crop62 = {target:null,margin:.35};
+    m.viewBoxed62 = false;
     m.appended = [];
     m.history = [];
     m.isSecondaryEdit = true;
@@ -4400,6 +4031,7 @@
     if (!name) return;
     var m = getMeta(name);
     if (selectedIndex >= 0 && selectedIndex < m.boxes.length) {
+      if(m.crop62&&m.crop62.target!==null&&m.crop62.target!==undefined){if(m.crop62.target===selectedIndex)m.crop62.target=null;else if(m.crop62.target>selectedIndex)m.crop62.target--;}
       m.boxes.splice(selectedIndex, 1);
       m.saved = false;
       selectedIndex = -1;
@@ -4456,7 +4088,7 @@
 
     var idx = hitBox(boxes, p);
     if (idx >= 0) {
-      selectedIndex = idx; mode = 'move';
+      selectedIndex = idx; getMeta(name).crop62=Object.assign({},getMeta(name).crop62,{target:idx}); mode = 'move';
       var mb = boxes[idx];
       dragData = { orig: { x: mb.x, y: mb.y, w: mb.w, h: mb.h }, startP: p };
       overlayCanvas.style.cursor = 'move';
@@ -4551,6 +4183,7 @@
 
     if (m.history && m.history.length > 0) {
       var lastAct = m.history.pop();
+      if(lastAct.type==='rule'){m.appended=lastAct.previous||[];m.saved=false;state.markedDefectTags.set(name,m.appended.join(''));renderSide(true);updateHud();return;}
       if (lastAct.type === 'name') {
         var removedTag = m.appended.pop();
         if (state.markedDefectTags) {
@@ -5137,7 +4770,8 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   // i35: identities, exact output ownership, recoverable saves and explicit review state.
   var projectId = '', photoPaths = {}, ioBusy = false, reviewData = {}, savingPhoto46=null;
   var INDEX_FILE = '.xunjian-output-v1.json';
-  var DIR_BOX = '缺陷圈示图', DIR_ORIG = '缺陷原图', DIR_CRIT = '危急缺陷';
+  var DIR_BOX = '大图', DIR_ORIG = '小图', DIR_CRIT = '危急缺陷';
+  var OUTPUT_SCAN_DIRS = WuhuCore.OUTPUT_DIRS.concat(WuhuCore.LEGACY_DIRS);
   function uid() { return crypto.randomUUID(); }
   function displayName(id) { var f = state.byName.get(id); return f ? f.name : String(id || ''); }
   function readLocal(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch(e) { return fallback; } }
@@ -5286,7 +4920,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   function emptyIndex() { return {version:1, revision:0, records:[], garbage:[]}; }
   function validArtifact(r) {
     return r && typeof r.photoId === 'string' && ['normal','auto','manual','legacy'].includes(r.kind) &&
-      [DIR_BOX,DIR_ORIG,DIR_CRIT].includes(r.dir) && typeof r.path === 'string' &&
+      OUTPUT_SCAN_DIRS.includes(r.dir) && typeof r.path === 'string' &&
       r.path.split('/').every(function(p) { return p && p !== '.' && p !== '..' && !p.includes('\\'); });
   }
   async function rawReadOutputIndex42(root) {
@@ -5353,7 +4987,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
     };
   }
   async function reconcileOutputs51(root,doc){
-    var files=await inventory42(root,[DIR_BOX,DIR_ORIG,DIR_CRIT]),match=outputMatcher51(),byPath=new Map(),garbage=new Set(doc.garbage.map(function(r){return outputKey51(r.dir,r.path);}));
+    var files=await inventory42(root,OUTPUT_SCAN_DIRS),match=outputMatcher51(),byPath=new Map(),garbage=new Set(doc.garbage.map(function(r){return outputKey51(r.dir,r.path);}));
     doc.records.forEach(function(r){var key=outputKey51(r.dir,r.path);if(!byPath.has(key))byPath.set(key,[]);byPath.get(key).push(r);});
     var replacements=new Map(),found=[],unmatched=0;
     for(var i=0;i<files.length;i++){
@@ -5377,7 +5011,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
     var cached=legacyCache46.get(root);
     if(reuse&&cached&&cached.project===projectId&&cached.revision===doc.revision){var known=new Set(doc.records.concat(doc.garbage).map(function(r){return r.dir+'/'+r.path;}));return cached.rows.filter(function(r){return !known.has(r.dir+'/'+r.path);});}
     var result = [], owned = new Set(doc.records.concat(doc.garbage).map(function(r) {return r.dir+'/'+r.path;}));
-    for (var dirName of [DIR_BOX,DIR_ORIG,DIR_CRIT]) {
+    for (var dirName of OUTPUT_SCAN_DIRS) {
       var d;
       try { d = root.name === dirName ? root : await root.getDirectoryHandle(dirName); }
       catch(e) { if (e.name === 'NotFoundError') continue; throw e; }
@@ -5457,7 +5091,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   }
   async function deleteExistingDefectOutputs(id, onlyDirs, groupKey) {
     var f=state.byName.get(id);if(!f||!output.mainHandle)return 0;
-    var root=output.mainHandle,dirs=onlyDirs||[DIR_BOX,DIR_ORIG,DIR_CRIT];
+    var root=output.mainHandle,dirs=onlyDirs||OUTPUT_SCAN_DIRS;
     return outputLock(root,async function(){
       var raw=await rawReadOutputIndex42(root),linked=await reconcileOutputs51(root,raw),doc=linked.doc;
       var targets=new Map();
@@ -5501,12 +5135,13 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
         return linked;
       });
       if(!linked||projectId!==generation||output.mainHandle!==root)return;
-      var marked=new Set(),handles=new Map(),tags=new Map(),counts=new Map(),critical=new Set(),groups=new Map(),handlePriority=new Map(),handleRank=new Map(),recordRank=new Map(linked.doc.records.map(function(r,i){return [outputKey51(r.dir,r.path),i];}));
+      var marked=new Set(),handles=new Map(),tags=new Map(),counts=new Map(),critical=new Set(),groups=new Map(),handlePriority=new Map(),handleRank=new Map(),metaRank62=new Map(),recordRank=new Map(linked.doc.records.map(function(r,i){return [outputKey51(r.dir,r.path),i];}));
       for(var item of linked.found){var r=item.record,id=r.photoId;marked.add(id);
         if(r.dir===DIR_CRIT)critical.add(id);
-        var priority=r.dir===DIR_BOX?2:r.dir===DIR_CRIT?1:0;
+        var priority=r.dir===DIR_BOX?3:r.dir==='缺陷圈示图'?2:r.dir===DIR_CRIT?1:0;
         var rank=recordRank.get(outputKey51(r.dir,r.path))||0;if(priority>0&&(priority>(handlePriority.get(id)||0)||(priority===(handlePriority.get(id)||0)&&rank>(handleRank.get(id)||0)))){handles.set(id,item.handle);handlePriority.set(id,priority);handleRank.set(id,rank);}
         if(r.tag)tags.set(id,r.tag);
+        if(r.dir===DIR_BOX&&Array.isArray(r.boxes62)&&rank>=(metaRank62.get(id)??-1)){metaRank62.set(id,rank);var meta62=getMeta(id);if(!hasDraft52(id)){meta62.boxes=r.boxes62.map(function(b){return Object.assign({},b);});meta62.appended=r.tag?[r.tag]:[];meta62.crop62=r.crop62;if(r.locationManual62)meta62.location62=r.location62;else delete meta62.location62;meta62.saved=true;meta62.tagsCleared=false;}}
         if(!groups.has(id))groups.set(id,new Set());groups.get(id).add(r.pairId||normOutput51(r.path.split('/').pop()));
       }
       groups.forEach(function(g,id){counts.set(id,g.size);});
@@ -5532,17 +5167,13 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
     FastIndex.markedChanged(state.indexByName.get(id),oldCount,boxes.length);
     if(handle)updateTreeAfterSave(id,state.markedDefectTags.get(id));else refreshTreeStats();
   }
-  function makeArtifact(f,dir,kind,blob,tag,frozenName46) {
-    var nv=frozenName46||newNamePreview(), ext=nv.ext;
-    // Canvas supports PNG/JPEG; keep suffix consistent when a BMP/WebP/TIFF is annotated.
-    if(blob.type==='image/jpeg' && !/\.jpe?g$/i.test(ext)) ext='.jpg';
-    if(blob.type==='image/png') ext='.png';
-    var base=(nv.base+tag).replace(/[\\/:*?"<>|\x00-\x1f]/g,'_');
-    // Bound filename length, leaving room for a readable collision number.
-    while(new TextEncoder().encode(base).length>160) base=base.slice(0,-1);
-    return {photoId:f.id,projectId:projectId,relPath:f.relPath,dir:dir,kind:kind,
-      path:base+ext,tag:tag,blob:blob};
+  function makeArtifact(f,dir,kind,blob,tag,frozenName46){
+    var nv=frozenName46||newNamePreview(f.id);
+    if(!nv.rule)throw new Error('请选择完整的芜湖缺陷规则');
+    return {photoId:f.id,projectId:projectId,relPath:f.relPath,dir:dir,kind:kind,path:WuhuCore.filename(nv.location,nv.rule),tag:tag,blob:blob};
   }
+
+
   function saveQueueBusy48(){return !!(SaveQueue48&&SaveQueue48.busy());}
   function photoPending48(id){return !!(SaveQueue48&&SaveQueue48.has(id));}
   function editLocked48(){return ioBusy||state.navBusy||photoPending48(curName());}
@@ -5577,29 +5208,25 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
     async function execute(job){
       if(projectId!==job.project||output.mainHandle!==job.root)throw new Error('输入或输出目录已切换，请回到原目录后重试');
       savingPhoto46=job.id;job.phase='合成圈框';paint();cancelDetails38();trimForExport46();schedulePreload(state.index,navDirection47);await yield46();
-      var boxed;exportBusy47=true;
-      try{boxed=await exportPhoto46(job.clean,job.mime,job.boxes,job.stroke);}finally{exportBusy47=false;detail38();}
-      job.phase='写入图片';paint();var additions=[],pair=uid();
-      if(job.manual)additions.push(makeArtifact(job.file,DIR_CRIT,'manual',boxed,job.tag,job.outputName));
-      else{
-        additions.push(makeArtifact(job.file,DIR_BOX,'normal',boxed,job.tag,job.outputName));
-        additions.push(makeArtifact(job.file,DIR_ORIG,'normal',job.clean,job.tag,job.outputName));
-        if(job.critical)additions.push(makeArtifact(job.file,DIR_CRIT,'auto',boxed,job.tag,job.outputName));
-      }
+      var pairBlobs;exportBusy47=true;
+      try{pairBlobs=await exportPair62(job);}finally{exportBusy47=false;detail38();}
+      job.phase='写入大小图';paint();var additions=[],pair=uid();
+      additions.push(makeArtifact(job.file,DIR_BOX,'normal',pairBlobs.large,job.tag,job.outputName));
+      additions.push(makeArtifact(job.file,DIR_ORIG,'normal',pairBlobs.small,job.tag,job.outputName));
+      additions.forEach(function(a){a.boxes62=job.boxes;a.crop62=job.cropOptions;a.location62=job.outputName.location;a.locationManual62=job.locationManual;a.stroke62=job.stroke;a.exportCrop62=job.crop;a.natural62=job.natural;});
       additions.forEach(function(a){a.pairId=pair;});
       var doc=await commitArtifacts(job.file,additions,function(r){
-        if(job.manual)return r.dir===DIR_CRIT&&r.kind==='manual';
         if(job.secondary)return false;
-        return r.dir===DIR_BOX||r.dir===DIR_ORIG||(r.dir===DIR_CRIT&&r.kind==='auto');
+        return r.dir===DIR_BOX||r.dir===DIR_ORIG;
       },true);
       // Disk commit is the success boundary. A later display failure cannot turn it into an unsaved task.
       job.status='done';completed++;job.clean=null;
       recordOperation52('保存成果',job.name,'成功',additions.length);
       setReview(job.id,{status:'defect'});
       if(!job.manual){job.meta.saved=true;job.meta.isSecondaryEdit=false;}
-      try{await applySavedPhoto46(job.root,doc,job.id);if(!job.manual)refreshSavedPreview47(job.id,job.boxes);}
+      try{await applySavedPhoto46(job.root,doc,job.id);if(curName()===job.id){dropImage(job.id);await repaintCurrent52(true,false);}}
       catch(e){toast(job.name+' 已保存，界面未完全同步，请点击刷新输出',6000);console.warn(e);}
-      if(curName()===job.id)flashSaved(job.manual?'危急图片已保存 ✓':'缺陷成果已保存 ✓');
+      if(curName()===job.id)flashSaved('大小图已保存 ✓');
       renderSide();updateHud();
     }
     async function pump(){
@@ -5629,10 +5256,12 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
       var id=curName(),f=state.byName.get(id);if(!f){toast('未打开任何图片');return null;}
       if(photoPending48(id)){toast('本图已在保存队列中');return null;}
       if(!await ensureOutputDir())return null;if(outputScanTask46)await outputScanTask46;
-      if([DIR_BOX,DIR_ORIG,DIR_CRIT].includes(output.mainHandle.name))throw new Error('请选择三个成果子文件夹的上一级目录');
+      if(OUTPUT_SCAN_DIRS.includes(output.mainHandle.name))throw new Error('请选择大图、小图的上一级成果目录');
       var m=getMeta(id);newNamePreview(id);
-      if((!m.boxes.length||!m.appended.length)&&!await showConfirmDialog('保存确认','当前照片尚未圈框或添加缺陷标签，确定保存吗？'))return null;
-      return {id:id,file:f,name:f.name,project:projectId,root:output.mainHandle,meta:m,manual:!!manual,
+      if(!WuhuCore.findRule(WuhuRules,m.appended[0])||m.appended.length!==1)throw new Error('请选择一条完整的芜湖缺陷规则');
+      var crop62=currentCrop62();if(!crop62)throw new Error('请先绘制至少一个有效红框，再保存缺陷大小图');
+      WuhuCore.filename(locationFor62(id),WuhuCore.findRule(WuhuRules,m.appended[0]));
+      return {id:id,file:f,name:f.name,project:projectId,root:output.mainHandle,meta:m,manual:false,locationManual:!!m.location62,crop:crop62,cropOptions:Object.assign({},m.crop62),natural:Object.assign({},state.natural),
         boxes:m.boxes.map(function(b){return Object.assign({},b);}),tag:m.appended.join(''),secondary:!!m.isSecondaryEdit,
         outputName:Object.assign({},newNamePreview(id)),critical:effectiveCritical(id),stroke:strokeWidth,mime:f.mime,clean:f.file||await f.handle.getFile()};
     },true);
@@ -5640,24 +5269,27 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   }
 
   async function saveBothFolders() { return savePhoto(false); }
-  async function saveCriticalOnly() { return savePhoto(true); }
-  async function createOriginalPhotosFromBoxed() {
+  async function saveCriticalOnly(){var rule=WuhuCore.findRule(WuhuRules,getMeta(curName()).appended[0]);if(!rule||rule.severity!=='危急'){toast('请先选择等级为危急的芜湖规则');return false;}return savePhoto(false);}
+  async function createOriginalPhotosFromBoxed(){
     return withIO(async function(){
       if(!await ensureOutputDir())return;
-      var doc=await readOutputIndex(output.mainHandle),rows=doc.records.concat(await legacyRecords(output.mainHandle,doc)),count=0;
-      for(var r of rows){
-        if(r.dir!==DIR_BOX||!state.byName.has(r.photoId))continue;
-        var candidates=rows.filter(function(x){return x.dir===DIR_ORIG&&x.photoId===r.photoId&&((r.pairId&&x.pairId===r.pairId)||x.path===r.path);});
-        var exists=false;for(var x of candidates){try{await artifactHandle(output.mainHandle,x);exists=true;break;}catch(e){if(e.name!=='NotFoundError')throw e;}}
-        if(exists)continue;
-        var f=state.byName.get(r.photoId),pairId=r.pairId||uid();
-        var box=Object.assign({},r,{pairId:pairId,blob:await (await artifactHandle(output.mainHandle,r)).getFile()});
-        var orig=Object.assign({},r,{dir:DIR_ORIG,pairId:pairId,blob:f.file||await f.handle.getFile()});
-        await commitArtifacts(f,[box,orig],function(x){return (x.dir===DIR_BOX&&x.path===r.path)||(x.dir===DIR_ORIG&&x.path===r.path);});count++;
+      var root=output.mainHandle,doc=await readOutputIndex(root),count=0;
+      for(var r of doc.records){
+        if(r.dir!==DIR_BOX||!Array.isArray(r.boxes62)||!state.byName.has(r.photoId))continue;
+        var existing=doc.records.find(function(x){return x.dir===DIR_ORIG&&x.pairId===r.pairId;});
+        if(existing){try{await artifactHandle(root,existing);continue;}catch(e){if(e.name!=='NotFoundError')throw e;}}
+        var f=state.byName.get(r.photoId),clean=f.file||await f.handle.getFile(),crop=r.exportCrop62;
+        if(!crop||!r.natural62)continue;
+        var blobs=await exportPair62({clean:clean,boxes:r.boxes62,crop:crop,natural:r.natural62,stroke:r.stroke62||10});
+        var small=Object.assign({},r,{dir:DIR_ORIG,blob:blobs.small});
+        // Preserve the exact pair name and the existing full image.
+        await outputLock(root,async function(){var latest=await rawReadOutputIndex42(root);var row=Object.assign({},small);delete row.blob;latest.records=latest.records.filter(function(x){return !(x.dir===DIR_ORIG&&x.pairId===r.pairId);}).concat([row]);latest.revision++;await transaction42(root,[{path:DIR_ORIG+'/'+r.path,blob:blobs.small},indexChange42(latest)],true);});count++;
       }
-      await scanOutputDirectory();toast('已补全 '+count+' 张原图，圈示图与原图名称保持对应');
+      await scanOutputDirectory();toast('已按保存时的选区补全 '+count+' 张小图；无裁剪资料的旧成果保持原样',6500);
     });
   }
+
+
   // Copy the whole directory before removing the source, and reject target collisions.
   async function copyAndRemoveDirectoryContents(src,dst) {
     for await(var pair of src.entries()) {
@@ -5803,10 +5435,10 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
     return withIO(async function(){
       if(!await ensureOutputDir())return;
       var root=output.mainHandle;
-      if([DIR_BOX,DIR_ORIG,DIR_CRIT].includes(root.name))throw new Error('请选择包含三个成果目录的上一级输出目录');
+      if(OUTPUT_SCAN_DIRS.includes(root.name))throw new Error('请选择包含大图、小图的上一级成果目录');
       var outcome=await outputLock(root,async function(){
-        var doc=await rawReadOutputIndex42(root),dirs=mode==='classify'?[DIR_BOX,DIR_ORIG]:[DIR_BOX,DIR_ORIG,DIR_CRIT];
-        var files=await inventory42(root,dirs);if(!files.length)throw new Error('当前目录“'+root.name+'”下没有可整理的成果图片。请选择包含“缺陷圈示图”和“缺陷原图”的上一级输出目录。');var records=new Map(doc.records.map(function(r){return [r.dir+'/'+r.path,r];}));
+        var doc=await rawReadOutputIndex42(root),dirs=mode==='classify'?[DIR_BOX,DIR_ORIG]:OUTPUT_SCAN_DIRS;
+        var files=await inventory42(root,dirs);if(!files.length)throw new Error('当前目录“'+root.name+'”下没有可整理的成果图片。请选择包含“大图”“小图”或已有旧成果的上一级目录。');var records=new Map(doc.records.map(function(r){return [r.dir+'/'+r.path,r];}));
         var garbage=new Set(doc.garbage.map(function(r){return r.dir+'/'+r.path;}));files=files.filter(function(f){return !garbage.has(f.dir+'/'+f.path);});
         if(mode==='classify')for(var dir of [DIR_BOX,DIR_ORIG]){var parent=await root.getDirectoryHandle(dir,{create:true});for(var category of ['全绝缘缺陷','其他缺陷'])await parent.getDirectoryHandle(category,{create:true});}
         var plans=[],reserved=new Set(files.map(function(f){return (f.dir+'/'+f.path).toLowerCase();})),paired=new Map();
@@ -5858,7 +5490,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
       return outcome;
     });
   }
-  async function classifyDefectsIntoInsulationFolders(){return organizeOutputs42('classify');}
+  async function classifyDefectsIntoInsulationFolders(){toast('芜湖成果采用大图、小图平铺保存，不建立分类子目录；旧成果保持原样',6500);}
   async function cleanOutputNames42(){return organizeOutputs42('clean');}
 
   // Decode at full resolution; retain a bounded working set and deduplicate in-flight reads.
@@ -6230,7 +5862,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   function cancelDetails38(){clearTimeout(detailTimer38);detailTask38=null;Decoder38.cancelDetail();}
   function disposeImage(c){if(!c)return;if(c.url)URL.revokeObjectURL(c.url);if(c.previewBitmap)c.previewBitmap.close();if(c.fullBitmap&&c.fullBitmap!==c.previewBitmap)c.fullBitmap.close();if(c.img&&!c.img.bitmap){c.img.onload=null;c.img.onerror=null;c.img.src='';}c.blob=null;c.img=null;c.previewBitmap=null;c.fullBitmap=null;c.url=null;}
   async function getImage(index,preferClean,background,requestToken){
-    var f=state.files[index];if(!f)throw new Error('照片不存在');var id=f.id,isMarked=!preferClean&&!getMeta(id).isSecondaryEdit&&state.markedFiles.has(id)&&state.markedBoxedHandles.has(id),c=state.cache.get(id);
+    var f=state.files[index];if(!f)throw new Error('照片不存在');var id=f.id;var linked62=state.markedBoxedHandles.get(id);if(preferClean!==true&&linked62&&linked62.rel&&linked62.rel.split('/').includes(DIR_BOX))preferClean=getMeta(id).viewBoxed62!==true;var isMarked=!preferClean&&!getMeta(id).isSecondaryEdit&&state.markedFiles.has(id)&&state.markedBoxedHandles.has(id),c=state.cache.get(id);
     if(c&&c.img&&!c.stale47&&c.isBoxed===!!isMarked){c.used=++imageClock;return c;}
     var epoch=cacheEpoch,version=imageVersions.get(id)||0,key=id+'|'+Number(isMarked)+'|'+version+'|'+epoch;
     if(inflightImages.has(key)){var shared=inflightImages.get(key);if(requestToken!==undefined){shared.ticket.navToken=requestToken;shared.ticket.background=false;shared.ticket.task.background=false;var qi=decodeQueue.indexOf(shared.ticket.task);if(qi>=0){decodeQueue.splice(qi,1);decodeQueue.unshift(shared.ticket.task);}pumpDecode();}return shared.promise;}
@@ -6711,6 +6343,101 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
       return {changed:changed,photos:state.files.length};
     });
   }
+  // Wuhu paired export: decode the source once, encode each JPG once, never export UI canvases.
+  function pairWorker62(){
+    self.onmessage=async function(event){
+      var d=event.data,bmp=null,cv=null;
+      try{
+        bmp=await createImageBitmap(d.clean);
+        if(bmp.width!==d.natural.w||bmp.height!==d.natural.h)throw new Error('原图尺寸或方向已变化，请刷新后重新圈示');
+        async function encode(rect){
+          cv=new OffscreenCanvas(rect.w,rect.h);var ctx=cv.getContext('2d');
+          ctx.drawImage(bmp,rect.x,rect.y,rect.w,rect.h,0,0,rect.w,rect.h);
+          ctx.strokeStyle='#FF0000';ctx.lineWidth=d.stroke;ctx.lineJoin='miter';
+          d.boxes.forEach(function(b){ctx.strokeRect(b.x-rect.x,b.y-rect.y,b.w,b.h);});
+          var blob=await cv.convertToBlob({type:'image/jpeg',quality:.95});cv.width=cv.height=1;cv=null;return blob;
+        }
+        var large=await encode({x:0,y:0,w:bmp.width,h:bmp.height}),small=await encode(d.crop);
+        self.postMessage({large:large,small:small});
+      }catch(e){self.postMessage({error:e.message||String(e)});}
+      finally{if(bmp)bmp.close();if(cv)cv.width=cv.height=1;}
+    };
+  }
+  async function exportPair62(job){
+    if(!job.crop)throw new Error('缺少有效小图选区');
+    if(window.Worker&&window.OffscreenCanvas&&window.createImageBitmap){
+      var url=URL.createObjectURL(new Blob(['('+pairWorker62.toString()+')()'],{type:'text/javascript'})),worker=null,timer;
+      try{
+        worker=new Worker(url);
+        return await new Promise(function(resolve,reject){
+          timer=setTimeout(function(){reject(new Error('大小图合成超时，请重试'));},120000);
+          worker.onmessage=function(e){e.data.error?reject(new Error(e.data.error)):resolve(e.data);};
+          worker.onerror=function(){reject(new Error('后台图片合成失败，请重试'));};
+          worker.postMessage({clean:job.clean,boxes:job.boxes,stroke:job.stroke,crop:job.crop,natural:job.natural});
+        });
+      }finally{clearTimeout(timer);worker?.terminate();URL.revokeObjectURL(url);}
+    }
+    var source=URL.createObjectURL(job.clean),img=null;
+    try{
+      img=await loadImageElement(source);
+      if(img.naturalWidth!==job.natural.w||img.naturalHeight!==job.natural.h)throw new Error('原图尺寸或方向已变化，请刷新后重新圈示');
+      var large=await composite(img,'image/jpeg',job.boxes,job.stroke),r=job.crop,cv=document.createElement('canvas');
+      try{
+        cv.width=r.w;cv.height=r.h;var ctx=cv.getContext('2d');ctx.drawImage(img,r.x,r.y,r.w,r.h,0,0,r.w,r.h);
+        ctx.strokeStyle='#FF0000';ctx.lineWidth=job.stroke;ctx.lineJoin='miter';
+        job.boxes.forEach(function(b){ctx.strokeRect(b.x-r.x,b.y-r.y,b.w,b.h);});
+        var small=await new Promise(function(resolve,reject){cv.toBlob(function(blob){blob?resolve(blob):reject(new Error('小图导出失败'));},'image/jpeg',.95);});
+        return {large:large,small:small};
+      }finally{cv.width=cv.height=1;}
+    }finally{if(img)img.src='';URL.revokeObjectURL(source);}
+  }
+  var smallFrame62=0;
+  function currentCrop62(){
+    var id=curName();if(!id||!state.natural.w||!currentImage())return null;
+    var m=getMeta(id);if(m.crop62&&Number.isInteger(m.crop62.target)&&m.crop62.target>=m.boxes.length)m.crop62.target=null;return WuhuCore.crop(m.boxes,state.natural.w,state.natural.h,m.crop62||{},strokeWidth);
+  }
+  function scheduleSmallPreview62(){
+    if(smallFrame62)return;
+    smallFrame62=requestAnimationFrame(function(){smallFrame62=0;paintSmallPreview62();});
+  }
+  function paintSmallPreview62(){
+    var cv=$('smallPreview');if(!cv)return;
+    var ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+    var id=curName(),m=id?getMeta(id):null,r=currentCrop62(),c=state.cache.get(id),options=m?.crop62||{};
+    var choices='<option value="auto">自动（最大红框）</option>'+(m?m.boxes.map(function(b,i){return '<option value="'+i+'">框 '+(i+1)+'</option>';}).join(''):'');
+    if($('cropTarget').innerHTML!==choices)$('cropTarget').innerHTML=choices;
+    $('cropTarget').value=Number.isInteger(options.target)&&options.target<(m?.boxes.length||0)?String(options.target):'auto';
+    $('cropMargin').value=String(Math.round((options.margin??.35)*100));
+    $('cropTarget').disabled=$('cropMargin').disabled=$('cropReset').disabled=!m||editLocked48()||!r;
+    $('cropStatus').textContent=r?'框 '+(r.target+1)+' · '+r.w+' × '+r.h+' 像素':'绘制有效红框后自动预览';
+    if(id){
+      var location=locationFor62(id);
+      [['locationLine','line'],['locationBranch','branch'],['locationPole','pole']].forEach(function(pair){var el=$(pair[0]);if(document.activeElement!==el)el.value=location[pair[1]]||'';el.disabled=editLocked48();});
+      var incomplete=!location.line||!location.branch||!location.pole;
+      $('locationWarning').textContent=incomplete?'需手动确认':'';
+      if(incomplete)$('locationEditor').open=true;
+    }
+    if(!r||!c?.img)return;
+    var image=c.img.bitmap||c.img,sw=image.width||c.img.naturalWidth,sh=image.height||c.img.naturalHeight;
+    var scale=Math.min(cv.width/r.w,cv.height/r.h),x=(cv.width-r.w*scale)/2,y=(cv.height-r.h*scale)/2;
+    ctx.save();ctx.beginPath();ctx.rect(x,y,r.w*scale,r.h*scale);ctx.clip();
+    ctx.drawImage(image,r.x*sw/state.natural.w,r.y*sh/state.natural.h,r.w*sw/state.natural.w,r.h*sh/state.natural.h,x,y,r.w*scale,r.h*scale);
+    if(!c.isBoxed){ctx.strokeStyle='#FF0000';ctx.lineWidth=Math.max(1,strokeWidth*scale);ctx.lineJoin='miter';
+      m.boxes.forEach(function(b){ctx.strokeRect(x+(b.x-r.x)*scale,y+(b.y-r.y)*scale,b.w*scale,b.h*scale);});}
+    ctx.restore();
+  }
+  function changeCrop62(patch){
+    if(!curName()||editLocked48())return;
+    var m=getMeta(curName());m.crop62=Object.assign({},m.crop62,patch);m.saved=false;renderOverlay();updateHud();
+  }
+  $('cropTarget').addEventListener('change',function(e){changeCrop62({target:e.target.value==='auto'?null:Number(e.target.value)});});
+  $('cropMargin').addEventListener('input',function(e){changeCrop62({margin:Number(e.target.value)/100});});
+  $('cropReset').addEventListener('click',function(){changeCrop62({target:null,margin:.35});});
+  [['locationLine','line'],['locationBranch','branch'],['locationPole','pole']].forEach(function(pair){
+    $(pair[0]).addEventListener('input',function(e){if(!curName()||editLocked48())return;var m=getMeta(curName());m.location62=Object.assign({},locationFor62(curName()));m.location62[pair[1]]=e.target.value;m.saved=false;renderSide();updateHud();});
+  });
+  $('locationAuto').addEventListener('click',function(){if(!curName()||editLocked48())return;delete getMeta(curName()).location62;getMeta(curName()).saved=false;renderSide();updateHud();});
+
   window.XunjianDesktop={
     roots:roots52,
     currentId:curName,

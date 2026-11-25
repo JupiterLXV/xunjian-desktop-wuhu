@@ -1,8 +1,60 @@
 {
   "name": "xunjian-desktop",
-  "version": "50.3.1",
+  "version": "50.4.0",
   "description": "巡检缺陷命名分类工具桌面版",
   "author": "Xunjian Desktop",
   "private": true,
-  "main": "app/main.cjs"
+  "main": "app/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "check": "node scripts/check.cjs",
+    "test:unit": "node --test tests/unit/*.test.cjs",
+    "test:ui": "playwright test",
+    "test": "npm run check && npm run test:unit && npm run test:ui",
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "test:installed": "node scripts/test-installed.cjs",
+    "dist:win:linux": "node scripts/build-from-linux.cjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1",
+    "acorn": "8.15.0",
+    "electron": "45.5.0",
+    "electron-builder": "26.18.0",
+    "pngjs": "7.0.0"
+  },
+  "build": {
+    "appId": "local.xunjian.desktop",
+    "productName": "巡检缺陷工具",
+    "asar": true,
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "app/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "app/icon.png",
+      "artifactName": "Xunjian-Wuhu-Setup-${version}-${arch}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "shortcutName": "巡检缺陷工具"
+    },
+    "npmRebuild": false
+  }
 }

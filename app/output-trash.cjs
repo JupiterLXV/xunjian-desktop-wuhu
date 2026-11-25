@@ -1,7 +1,7 @@
 'use strict';
 // Immutable backups stay beside the output. Recovery never overwrites unrelated files.
 const fs=require('node:fs/promises'),path=require('node:path'),crypto=require('node:crypto');
-const ROOT='.xunjian-trash-v1',INDEX='.xunjian-output-v1.json',DIRS=['缺陷圈示图','缺陷原图','危急缺陷'];
+const ROOT='.xunjian-trash-v1',INDEX='.xunjian-output-v1.json',DIRS=['大图','小图','缺陷圈示图','缺陷原图','危急缺陷'];
 const EMPTY={version:1,revision:0,records:[],garbage:[]};
 const digest=b=>crypto.createHash('sha256').update(b).digest('hex');
 async function hash(p){const h=crypto.createHash('sha256');for await(const b of require('node:fs').createReadStream(p))h.update(b);return h.digest('hex');}

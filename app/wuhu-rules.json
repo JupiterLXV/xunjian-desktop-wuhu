@@ -1,0 +1,230 @@
+[
+  {
+    "component": "金具",
+    "description": "位移、变形、松动、断裂",
+    "severity": "危急"
+  },
+  {
+    "component": "金具",
+    "description": "位移、变形、松动",
+    "severity": "一般"
+  },
+  {
+    "component": "横担端U型挂板",
+    "description": "销钉缺失",
+    "severity": "一般"
+  },
+  {
+    "component": "变压器",
+    "description": "异物",
+    "severity": "严重"
+  },
+  {
+    "component": "杆塔",
+    "description": "鸟巢",
+    "severity": "严重"
+  },
+  {
+    "component": "柱上开关",
+    "description": "鸟巢",
+    "severity": "严重"
+  },
+  {
+    "component": "导线",
+    "description": "松股",
+    "severity": "危急"
+  },
+  {
+    "component": "导线",
+    "description": "断股",
+    "severity": "严重"
+  },
+  {
+    "component": "导线",
+    "description": "绑扎线缺失",
+    "severity": "严重"
+  },
+  {
+    "component": "绝缘子",
+    "description": "固定卡扣螺栓缺失",
+    "severity": "严重"
+  },
+  {
+    "component": "绝缘子",
+    "description": "脱落",
+    "severity": "危急"
+  },
+  {
+    "component": "绝缘子",
+    "description": "异物",
+    "severity": "严重"
+  },
+  {
+    "component": "横担端U型挂板",
+    "description": "螺母松动",
+    "severity": "严重"
+  },
+  {
+    "component": "横担端U型挂板",
+    "description": "螺母缺失",
+    "severity": "危急"
+  },
+  {
+    "component": "通道",
+    "description": "树障安全距离不足",
+    "severity": "一般"
+  },
+  {
+    "component": "横担端直角挂板",
+    "description": "销钉缺失",
+    "severity": "一般"
+  },
+  {
+    "component": "横担端直角挂板",
+    "description": "螺母松动",
+    "severity": "严重"
+  },
+  {
+    "component": "横担端球头挂环",
+    "description": "销钉缺失",
+    "severity": "严重"
+  },
+  {
+    "component": "横担端球头挂环",
+    "description": "螺母松动",
+    "severity": "严重"
+  },
+  {
+    "component": "横担端球头挂环",
+    "description": "螺母缺失",
+    "severity": "危急"
+  },
+  {
+    "component": "横担端直角挂板、球头挂环",
+    "description": "销钉缺失",
+    "severity": "严重"
+  },
+  {
+    "component": "横担端球头挂环",
+    "description": "销钉缺失、螺母松动",
+    "severity": "严重"
+  },
+  {
+    "component": "横担端直角挂板、球头挂环",
+    "description": "销钉缺失、螺母松动",
+    "severity": "严重"
+  },
+  {
+    "component": "耐张线夹",
+    "description": "销钉缺失",
+    "severity": "一般"
+  },
+  {
+    "component": "耐张线夹",
+    "description": "螺母缺失",
+    "severity": "危急"
+  },
+  {
+    "component": "耐张线夹",
+    "description": "绝缘罩脱落",
+    "severity": "一般"
+  },
+  {
+    "component": "熔断器",
+    "description": "绝缘罩缺失",
+    "severity": "一般"
+  },
+  {
+    "component": "熔断器",
+    "description": "污秽",
+    "severity": "一般"
+  },
+  {
+    "component": "熔断器",
+    "description": "引线断裂",
+    "severity": "严重"
+  },
+  {
+    "component": "熔断器",
+    "description": "熔管缺失",
+    "severity": "严重",
+    "note": "不在上面"
+  },
+  {
+    "component": "熔断器",
+    "description": "表面污秽，无放电现象",
+    "severity": "一般"
+  },
+  {
+    "component": "熔断器",
+    "description": "表面污秽严重，有轻微放电",
+    "severity": "严重"
+  },
+  {
+    "component": "熔断器",
+    "description": "表面污秽严重，有严重放电",
+    "severity": "危急"
+  },
+  {
+    "component": "避雷器",
+    "description": "绝缘罩缺失",
+    "severity": "一般"
+  },
+  {
+    "component": "避雷器",
+    "description": "锈蚀",
+    "severity": "严重"
+  },
+  {
+    "component": "避雷器",
+    "description": "引线断裂",
+    "severity": "严重"
+  },
+  {
+    "component": "避雷器",
+    "description": "脱离器脱落",
+    "severity": "严重",
+    "note": "不在上面"
+  },
+  {
+    "component": "避雷器",
+    "description": "脱离器跌落",
+    "severity": "严重",
+    "note": "还挂在上面"
+  },
+  {
+    "component": "避雷器",
+    "description": "表面污秽，无放电现象",
+    "severity": "一般"
+  },
+  {
+    "component": "避雷器",
+    "description": "表面污秽严重，有轻微放电",
+    "severity": "严重"
+  },
+  {
+    "component": "避雷器",
+    "description": "表面污秽严重，有严重放电",
+    "severity": "危急"
+  },
+  {
+    "component": "柱上开关",
+    "description": "绝缘罩缺失",
+    "severity": "一般"
+  },
+  {
+    "component": "柱上开关",
+    "description": "线夹绝缘罩缺失",
+    "severity": "一般"
+  },
+  {
+    "component": "柱上开关",
+    "description": "鸟巢",
+    "severity": "危急"
+  },
+  {
+    "component": "柱上开关",
+    "description": "电流互感器脱落",
+    "severity": "危急"
+  }
+]

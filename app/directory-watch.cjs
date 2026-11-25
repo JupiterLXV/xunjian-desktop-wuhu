@@ -1,6 +1,6 @@
 'use strict';
 const fs=require('node:fs'),fsp=require('node:fs/promises'),crypto=require('node:crypto');
-const OUTPUT=['缺陷圈示图','缺陷原图','危急缺陷'];
+const OUTPUT=['大图','小图','缺陷圈示图','缺陷原图','危急缺陷'];
 async function snapshot(s,{h,mode}){
  const rows=[],dirs=[],queue=[{h,p:''}];await s.locate(h);
  for(let i=0;i<queue.length;i++){const job=queue[i],dir=await s.locate(job.h),entries=await fsp.readdir(dir,{withFileTypes:true});
