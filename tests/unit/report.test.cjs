@@ -131,6 +131,23 @@ test('report-service formats coordinates, line names, extracts nadir GPS to XLS,
     const docxBuf = await fs.readFile(res.outDocxPath);
     assert.equal(docxBuf.subarray(0, 2).toString('ascii'), 'PK');
     assert.ok(docxBuf.length > 5000);
+
+    // Verify OOXML validity: no nested <w:p> inside <w:p>, Heading1..3 present, and image cell widths >= image extent
+    const unzipper = require('unzipper');
+    const dirZip = await unzipper.Open.buffer(docxBuf);
+    const readEntry = async name => (await dirZip.files.find(f => f.path === name).buffer()).toString('utf8');
+    const docXml = await readEntry('word/document.xml');
+    const stylesXml = await readEntry('word/styles.xml');
+    assert.equal(/<w:p\b[^>]*>(?:(?!<\/w:p>).)*<w:p\b/s.test(docXml), false, 'Nested <w:p> found in document.xml');
+    assert.match(docXml, /<w:gridCol w:w="4763"/);
+    assert.match(stylesXml, /w:styleId="Heading1"/);
+    assert.match(stylesXml, /w:styleId="Heading2"/);
+    assert.match(stylesXml, /w:styleId="Heading3"/);
+    assert.match(stylesXml, /方正黑体_GBK/);
+    assert.match(stylesXml, /方正楷体_GBK/);
+    assert.match(stylesXml, /方正仿宋_GBK/);
+    const blips = docXml.match(/<a:blip\b/g) || [];
+    assert.equal(blips.length, 4); // 1 defect (big+small) + 1 tree (big+small)
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }

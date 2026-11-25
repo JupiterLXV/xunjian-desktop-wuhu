@@ -514,7 +514,7 @@ function parseDefectParts(fileName) {
 function makeNormalRun(text) {
   return new TextRun({
     text: String(text),
-    font: { name: 'Arial', eastAsia: '方正仿宋_GBK', ascii: 'Arial', hAnsi: 'Arial' },
+    font: { eastAsia: '方正仿宋_GBK', ascii: 'Arial', hAnsi: 'Arial' },
     size: 32,
     bold: false,
     color: '000000',
@@ -532,7 +532,7 @@ function makeHeading(text, level) {
     children: [
       new TextRun({
         text: String(text),
-        font: { name: 'Arial', eastAsia: fontByLevel.eastAsia, ascii: 'Arial', hAnsi: 'Arial' },
+        font: { eastAsia: fontByLevel.eastAsia, ascii: 'Arial', hAnsi: 'Arial' },
         size: 32,
         bold: fontByLevel.bold,
         color: '000000',
@@ -545,30 +545,26 @@ function makeNormalParagraph(text) {
   return new Paragraph({
     indent: { firstLine: 360 },
     alignment: AlignmentType.LEFT,
+    spacing: { before: 0, after: 200, line: 276 },
     children: [makeNormalRun(text)],
   });
 }
 
 function makeTableCell(text, options = {}) {
   const eastAsia = options.eastAsia || '方正仿宋_GBK';
-  const paragraph = options.children
-    ? new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: options.children,
-      })
-    : new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: options.compact ? { before: 0, after: 0, line: 240 } : undefined,
-        children: [
-          new TextRun({
-            text: text == null ? '' : String(text),
-            font: { name: eastAsia, eastAsia, ascii: eastAsia, hAnsi: eastAsia },
-            size: 24,
-            bold: false,
-            color: '000000',
-          }),
-        ],
-      });
+  const paragraph = new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { before: 0, after: 0, line: 240 },
+    children: [
+      new TextRun({
+        text: text == null ? '' : String(text),
+        font: { eastAsia, ascii: eastAsia, hAnsi: eastAsia },
+        size: 24,
+        bold: false,
+        color: '000000',
+      }),
+    ],
+  });
 
   return new TableCell({
     verticalAlign: VerticalAlign.CENTER,
@@ -584,11 +580,11 @@ function makeStyledTable(rows, options = {}) {
   return new Table({
     alignment: AlignmentType.CENTER,
     borders: TABLE_GRID_BORDERS,
-    layout: widthsTwips ? TableLayoutType.FIXED : TableLayoutType.AUTOFIT,
+    layout: TableLayoutType.FIXED,
     columnWidths: widthsTwips,
     width: widthsTwips
       ? { size: widthsTwips.reduce((a, b) => a + b, 0), type: WidthType.DXA }
-      : { size: 100, type: WidthType.PERCENTAGE },
+      : { size: cmToTwips(16), type: WidthType.DXA },
     rows,
   });
 }
@@ -608,13 +604,17 @@ function loadImageRunBuffer(imgPath) {
   throw new Error(`无法读取缺陷图片：${imgPath}`);
 }
 
-function makePictureCell(imgPath, columnSpan = 1) {
+function makePictureCell(imgPath, columnSpan = 1, widthCm = 8.4) {
   const data = loadImageRunBuffer(imgPath);
-  return makeTableCell('', {
+  return new TableCell({
+    verticalAlign: VerticalAlign.CENTER,
     columnSpan,
+    width: { size: cmToTwips(widthCm), type: WidthType.DXA },
+    margins: { top: 40, bottom: 40, left: 40, right: 40 },
     children: [
       new Paragraph({
         alignment: AlignmentType.CENTER,
+        spacing: { before: 0, after: 0, line: 240 },
         children: [
           new ImageRun({
             type: 'jpg',
@@ -633,28 +633,22 @@ function makePictureCell(imgPath, columnSpan = 1) {
 function addDefectSummarySection(children, heading, items) {
   children.push(makeHeading(heading, HeadingLevel.HEADING_2));
   const ordered = sortMainFirst(items.filter(x => !x.includes('树障')));
+  const widthsCm = [1.2, 1.8, 3.8, 1.8, 2.6, 3.2, 1.6];
   const headerRow = new TableRow({
     children: ['序号', '电压等级', '线路名称', '运行杆号', '位置', '缺陷内容', '缺陷类别']
-      .map(title => makeTableCell(title)),
+      .map((title, idx) => makeTableCell(title, { widthCm: widthsCm[idx] })),
   });
   const dataRows = ordered.map((pictureName, i) => {
     const parsed = parseDefectParts(pictureName);
     const parts = parsed.parts;
     const shortLine = parts[0].replace(/^\d+\s*kV/i, '');
     const lineLabel = parts[1] === '主线' ? shortLine : `${shortLine}${parts[1]}`;
+    const vals = [i + 1, '10kV', lineLabel, parts[2], parts[3], parts[4], parsed.severity];
     return new TableRow({
-      children: [
-        makeTableCell(i + 1),
-        makeTableCell('10kV'),
-        makeTableCell(lineLabel),
-        makeTableCell(parts[2]),
-        makeTableCell(parts[3]),
-        makeTableCell(parts[4]),
-        makeTableCell(parsed.severity),
-      ],
+      children: vals.map((val, idx) => makeTableCell(val, { widthCm: widthsCm[idx] })),
     });
   });
-  children.push(makeStyledTable([headerRow, ...dataRows]));
+  children.push(makeStyledTable([headerRow, ...dataRows], { widthsCm }));
 }
 
 function makeDetailBlockTable(smallDir, bigDir, fileName, poleHeading = '塔号') {
@@ -666,14 +660,41 @@ function makeDetailBlockTable(smallDir, bigDir, fileName, poleHeading = '塔号'
   if (!fileExists(bigPath)) throw new Error(`缺少对应大图文件：${bigPath}`);
   if (!fileExists(smallPath)) throw new Error(`缺少对应小图文件：${smallPath}`);
 
+  const widthsCm = [8.4, 4.2, 4.2];
   const rowHeight15 = { value: cmToTwips(1.5), rule: 'atLeast' };
   const rowHeight65 = { value: cmToTwips(6.5), rule: 'atLeast' };
   return makeStyledTable([
-    new TableRow({ height: rowHeight15, children: [makeTableCell('线路名称'), makeTableCell(poleHeading), makeTableCell('缺陷定性')] }),
-    new TableRow({ height: rowHeight15, children: [makeTableCell(lineCellText), makeTableCell(parts[2]), makeTableCell(parsed.severity)] }),
-    new TableRow({ height: rowHeight15, children: [makeTableCell('缺陷描述'), makeTableCell(`${parts[3]}${parts[4]}`, { columnSpan: 2 })] }),
-    new TableRow({ height: rowHeight65, children: [makePictureCell(bigPath, 1), makePictureCell(smallPath, 2)] }),
-  ]);
+    new TableRow({
+      height: rowHeight15,
+      children: [
+        makeTableCell('线路名称', { widthCm: widthsCm[0] }),
+        makeTableCell(poleHeading, { widthCm: widthsCm[1] }),
+        makeTableCell('缺陷定性', { widthCm: widthsCm[2] }),
+      ],
+    }),
+    new TableRow({
+      height: rowHeight15,
+      children: [
+        makeTableCell(lineCellText, { widthCm: widthsCm[0] }),
+        makeTableCell(parts[2], { widthCm: widthsCm[1] }),
+        makeTableCell(parsed.severity, { widthCm: widthsCm[2] }),
+      ],
+    }),
+    new TableRow({
+      height: rowHeight15,
+      children: [
+        makeTableCell('缺陷描述', { widthCm: widthsCm[0] }),
+        makeTableCell(`${parts[3]}${parts[4]}`, { columnSpan: 2, widthCm: widthsCm[1] + widthsCm[2] }),
+      ],
+    }),
+    new TableRow({
+      height: rowHeight65,
+      children: [
+        makePictureCell(bigPath, 1, widthsCm[0]),
+        makePictureCell(smallPath, 2, widthsCm[1] + widthsCm[2]),
+      ],
+    }),
+  ], { widthsCm });
 }
 
 async function generateReport({ reportDir, excelPath = '', lineName = '', logFn = () => {}, onProgress = () => {} }) {
@@ -790,35 +811,45 @@ async function generateReport({ reportDir, excelPath = '', lineName = '', logFn 
   // 二、巡检信息
   children.push(makeHeading('二、巡检信息', HeadingLevel.HEADING_1));
   children.push(makeHeading('（一）综合飞行工况', HeadingLevel.HEADING_2));
+  const flyWidths = [3.5, 4.5, 3.5, 4.5];
   children.push(makeStyledTable([
-    new TableRow({ children: [makeTableCell('巡检名称'), makeTableCell(`${resolvedLineName}督查巡视`, { columnSpan: 3 })] }),
-    new TableRow({ children: [makeTableCell('巡检日期'), makeTableCell(inspectionDate, { columnSpan: 3 })] }),
-    new TableRow({ children: [makeTableCell('巡检机型'), makeTableCell(aircraftModel), makeTableCell('飞行高度'), makeTableCell(flightHeight)] }),
-  ]));
+    new TableRow({ children: [makeTableCell('巡检名称', { widthCm: flyWidths[0] }), makeTableCell(`${resolvedLineName}督查巡视`, { columnSpan: 3, widthCm: 12.5 })] }),
+    new TableRow({ children: [makeTableCell('巡检日期', { widthCm: flyWidths[0] }), makeTableCell(inspectionDate, { columnSpan: 3, widthCm: 12.5 })] }),
+    new TableRow({
+      children: [
+        makeTableCell('巡检机型', { widthCm: flyWidths[0] }),
+        makeTableCell(aircraftModel, { widthCm: flyWidths[1] }),
+        makeTableCell('飞行高度', { widthCm: flyWidths[2] }),
+        makeTableCell(flightHeight, { widthCm: flyWidths[3] }),
+      ],
+    }),
+  ], { widthsCm: flyWidths }));
 
   children.push(makeHeading('（二）巡检线路基本信息', HeadingLevel.HEADING_2));
   if (sheet2Rows.length) {
+    const infoWidths = [5.0, 4.0, 3.0, 4.0];
     const infoRows = [
-      new TableRow({ children: ['线路名称', '杆塔区间', '杆塔数量', '作业机型'].map(t => makeTableCell(t)) }),
+      new TableRow({ children: ['线路名称', '杆塔区间', '杆塔数量', '作业机型'].map((t, idx) => makeTableCell(t, { widthCm: infoWidths[idx] })) }),
       ...sheet2Rows.map((row, idx) => new TableRow({
         children: [
-          makeTableCell(row[0]),
-          makeTableCell(row[1]),
-          makeTableCell(row[2]),
+          makeTableCell(row[0], { widthCm: infoWidths[0] }),
+          makeTableCell(row[1], { widthCm: infoWidths[1] }),
+          makeTableCell(row[2], { widthCm: infoWidths[2] }),
           ...(idx === 0
-            ? [makeTableCell(aircraftModel, sheet2Rows.length > 1 ? { rowSpan: sheet2Rows.length } : {})]
+            ? [makeTableCell(aircraftModel, { widthCm: infoWidths[3], ...(sheet2Rows.length > 1 ? { rowSpan: sheet2Rows.length } : {}) })]
             : []),
         ],
       })),
     ];
-    children.push(makeStyledTable(infoRows));
+    children.push(makeStyledTable(infoRows, { widthsCm: infoWidths }));
   }
 
   // 三、缺陷明细
   children.push(makeHeading('三、缺陷明细', HeadingLevel.HEADING_1));
   children.push(makeHeading('（一）精细化缺陷统计', HeadingLevel.HEADING_2));
+  const statWidths = [3.2, 3.2, 3.2, 3.2, 3.2];
   children.push(makeStyledTable([
-    new TableRow({ children: ['缺陷等级', '危急', '严重', '一般', '合计'].map(t => makeTableCell(t)) }),
+    new TableRow({ children: ['缺陷等级', '危急', '严重', '一般', '合计'].map((t, idx) => makeTableCell(t, { widthCm: statWidths[idx] })) }),
     new TableRow({
       children: [
         '缺陷数量',
@@ -826,9 +857,9 @@ async function generateReport({ reportDir, excelPath = '', lineName = '', logFn 
         seriousDefects.length,
         generalDefects.length,
         totalDefect,
-      ].map(v => makeTableCell(v)),
+      ].map((v, idx) => makeTableCell(v, { widthCm: statWidths[idx] })),
     }),
-  ]));
+  ], { widthsCm: statWidths }));
 
   addDefectSummarySection(children, '（二）危急缺陷汇总', criticalDefects);
   addDefectSummarySection(children, '（三）严重缺陷汇总', seriousDefects);
@@ -910,42 +941,96 @@ async function generateReport({ reportDir, excelPath = '', lineName = '', logFn 
       default: {
         document: {
           run: {
-            font: { name: 'Arial', eastAsia: '方正仿宋_GBK', ascii: 'Arial', hAnsi: 'Arial' },
+            font: { eastAsia: '方正仿宋_GBK', ascii: 'Arial', hAnsi: 'Arial' },
             size: 32,
             color: '000000',
           },
           paragraph: {
             alignment: AlignmentType.LEFT,
             indent: { firstLine: 360 },
+            spacing: { before: 0, after: 200, line: 276 },
           },
         },
-        heading1: {
+      },
+      paragraphStyles: [
+        {
+          id: 'Heading1',
+          name: 'heading 1',
+          basedOn: 'Normal',
+          next: 'Normal',
+          quickFormat: true,
           run: {
-            font: { name: 'Arial', eastAsia: '方正黑体_GBK', ascii: 'Arial', hAnsi: 'Arial' },
+            font: { eastAsia: '方正黑体_GBK', ascii: 'Arial', hAnsi: 'Arial' },
             size: 32,
             bold: false,
             color: '000000',
           },
+          paragraph: {
+            keepNext: true,
+            keepLines: true,
+            spacing: { before: 480, after: 0 },
+            outlineLevel: 0,
+          },
         },
-        heading2: {
+        {
+          id: 'Heading2',
+          name: 'heading 2',
+          basedOn: 'Normal',
+          next: 'Normal',
+          quickFormat: true,
           run: {
-            font: { name: 'Arial', eastAsia: '方正楷体_GBK', ascii: 'Arial', hAnsi: 'Arial' },
+            font: { eastAsia: '方正楷体_GBK', ascii: 'Arial', hAnsi: 'Arial' },
             size: 32,
             bold: true,
             color: '000000',
           },
+          paragraph: {
+            keepNext: true,
+            keepLines: true,
+            spacing: { before: 200, after: 0 },
+            outlineLevel: 1,
+          },
         },
-        heading3: {
+        {
+          id: 'Heading3',
+          name: 'heading 3',
+          basedOn: 'Normal',
+          next: 'Normal',
+          quickFormat: true,
           run: {
-            font: { name: 'Arial', eastAsia: '方正仿宋_GBK', ascii: 'Arial', hAnsi: 'Arial' },
+            font: { eastAsia: '方正仿宋_GBK', ascii: 'Arial', hAnsi: 'Arial' },
             size: 32,
             bold: false,
             color: '000000',
           },
+          paragraph: {
+            keepNext: true,
+            keepLines: true,
+            spacing: { before: 200, after: 0 },
+            outlineLevel: 2,
+          },
         },
-      },
+      ],
     },
-    sections: [{ children }],
+    sections: [
+      {
+        properties: {
+          page: {
+            size: {
+              width: cmToTwips(21.0),
+              height: cmToTwips(29.7),
+            },
+            margin: {
+              top: cmToTwips(2.54),
+              bottom: cmToTwips(2.54),
+              left: cmToTwips(2.0),
+              right: cmToTwips(2.0),
+            },
+          },
+        },
+        children,
+      },
+    ],
   });
 
   const outDocxPath = path.join(outputDir, `${reportTitle}无人机技术监督巡视分析报告.docx`);
