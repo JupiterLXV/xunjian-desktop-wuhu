@@ -39,6 +39,10 @@ public static class XunjianTaskbarProbe {
  public static IntPtr[] Taskbars(){var list=new List<IntPtr>();EnumWindows(delegate(IntPtr h,IntPtr p){var s=new System.Text.StringBuilder(128);GetClassName(h,s,128);if(s.ToString()=="Shell_TrayWnd"||s.ToString()=="Shell_SecondaryTrayWnd")list.Add(h);return true;},IntPtr.Zero);return list.ToArray();}
 }
 '@
+function Hash-File([string]$File){
+ $stream=[IO.File]::OpenRead($File);$algorithm=[Security.Cryptography.SHA256]::Create()
+ try{return [BitConverter]::ToString($algorithm.ComputeHash($stream)).Replace('-','').ToLowerInvariant()}finally{$algorithm.Dispose();$stream.Dispose()}
+}
 function Read-AsarFile([string]$Archive,[string]$Relative){
  $stream=[IO.File]::OpenRead($Archive)
  try{
@@ -105,13 +109,13 @@ try{
  $candidates=@(Get-Process -ErrorAction SilentlyContinue|Where-Object {$_.ProcessName -eq '巡检缺陷工具' -and $_.MainWindowHandle -ne [IntPtr]::Zero})
  if($candidates.Count -ne 1){throw "请先打开一个巡检程序主窗口，再双击本工具。当前检测到 $($candidates.Count) 个主窗口。"}
  $target=$candidates[0];$window=$target.MainWindowHandle;$exe=$target.Path
- $report.process=@{id=$target.Id;path=$exe;fileVersion=$target.FileVersion;title=$target.MainWindowTitle;windowHandle=$window.ToInt64();exeSha256=(Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash}
+ $report.process=@{id=$target.Id;path=$exe;fileVersion=$target.FileVersion;title=$target.MainWindowTitle;windowHandle=$window.ToInt64();exeSha256=(Hash-File $exe)}
  $archive=Join-Path (Split-Path $exe) 'resources\app.asar'
  $pkg=[Text.Encoding]::UTF8.GetString((Read-AsarFile $archive 'package.json'))|ConvertFrom-Json
  $main=[Text.Encoding]::UTF8.GetString((Read-AsarFile $archive 'app/main.cjs'))
- $report.source=@{version=$pkg.version;asarSha256=(Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash;hasSetAppDetails=$main.Contains('win.setAppDetails(');hasProcessAppId=$main.Contains("app.setAppUserModelId('local.xunjian.desktop')")}
+ $report.source=@{version=$pkg.version;asarSha256=(Hash-File $archive);hasSetAppDetails=$main.Contains('win.setAppDetails(');hasProcessAppId=$main.Contains("app.setAppUserModelId('local.xunjian.desktop')")}
  $logo=Read-AsarFile $archive 'app/icon.ico';$iconFile=Join-Path $outDir 'original-logo.ico';[IO.File]::WriteAllBytes($iconFile,$logo)
- $iconHash=(Get-FileHash -LiteralPath $iconFile -Algorithm SHA256).Hash
+ $iconHash=Hash-File $iconFile
  if($iconHash -ne '9ca78efce12395b0c827d1b92e3b0c25962f2f3a4bb2c81fc5b3bbee4c956745'){throw '图标与已验证的原版 Logo 不一致，已停止修改窗口属性。'}
  $report.source.iconSha256=$iconHash
  $report.shortcuts=@(Read-Shortcuts)
