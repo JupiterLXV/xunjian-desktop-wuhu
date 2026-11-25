@@ -2,10 +2,12 @@
 const {app,BrowserWindow,dialog,ipcMain,Menu,protocol,net,shell,screen}=require('electron');
 const fs=require('node:fs/promises'),path=require('node:path'),{pathToFileURL}=require('node:url');
 const {FileService,normalizeError}=require('./fs-service.cjs');
+const reportService=require('./report-service.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'xunjian-file',privileges:{standard:true,secure:true,supportFetchAPI:true,stream:true,corsEnabled:true}}]);
 app.setName('巡检缺陷工具');
 app.setAppUserModelId('local.xunjian.desktop');
 let win,service,allowClose=false,closing=false,statePath,closeTimer;
+const reportAllowedPaths=new Set();
 const entry=pathToFileURL(path.join(__dirname,'index.html')).href;
 if(!app.requestSingleInstanceLock()){app.quit();}else{
 app.on('second-instance',()=>{if(win){if(win.isMinimized())win.restore();win.show();win.focus();}});
@@ -18,6 +20,52 @@ app.whenReady().then(async()=>{
  if(op==='pick'){let defaultPath;if(args.startIn)defaultPath=await service.locate(args.startIn).catch(()=>undefined);const result=await dialog.showOpenDialog(win,{title:args.id?.includes('output')?'选择输出总目录（包含大图、小图、原图）':'选择图片文件夹',defaultPath,properties:['openDirectory','createDirectory']});if(result.canceled)throw Object.assign(Error('已取消选择'),{name:'AbortError'});value=await service.grant(result.filePaths[0]);}
  else if(op==='reveal'){const p=await service.locate(args.h);if(args.h.kind==='directory'){const error=await shell.openPath(p);if(error)throw Error(error);}else shell.showItemInFolder(p);value=true;}
  else if(op==='defect-rules')value=JSON.parse(await fs.readFile(path.join(__dirname,'wuhu-rules.json'),'utf8'));
+ else if(op==='report-defaults'){
+  const reportDir=args.outputHandle?await service.locate(args.outputHandle).catch(()=>''):'';
+  const photoDir=args.inputHandle?await service.locate(args.inputHandle).catch(()=>''):'';
+  let defectDir='';try{if(reportDir)defectDir=reportService.resolveDefectDir(reportDir).defectDir;}catch{}
+  const excelPath=reportDir?(reportService.findExcelFile(reportDir,defectDir)||''):'';
+  const detected=reportService.detectLineName(reportDir,photoDir,excelPath);
+  value={reportDir,photoDir,excelPath,...detected};
+ }
+ else if(op==='report-detect'){
+  let defectDir='';try{if(args.reportDir)defectDir=reportService.resolveDefectDir(args.reportDir).defectDir;}catch{}
+  const excelPath=args.excelPath||((args.reportDir||defectDir)?(reportService.findExcelFile(args.reportDir,defectDir)||''):'');
+  const detected=reportService.detectLineName(args.reportDir||'',args.photoDir||'',excelPath);
+  value={excelPath,...detected};
+ }
+ else if(op==='report-pick-dir'){
+  const result=await dialog.showOpenDialog(win,{title:args.title||'选择目录',defaultPath:args.defaultPath||undefined,properties:['openDirectory']});
+  value=result.canceled?null:{path:result.filePaths[0]};
+ }
+ else if(op==='report-pick-excel'){
+  const result=await dialog.showOpenDialog(win,{title:'选择坐标 Excel 表格',defaultPath:args.defaultPath||undefined,properties:['openFile'],filters:[{name:'Excel 表格',extensions:['xls','xlsx']}]});
+  value=result.canceled?null:{path:result.filePaths[0]};
+ }
+ else if(op==='report-run'){
+  const sendLog=text=>{if(win&&!win.isDestroyed())win.webContents.send('desktop:progress',{kind:'report-log',text});};
+  const mode=args.mode||'all';
+  let outXlsPath='',coordCount=0,reportResult=null;
+  if(mode==='extract'||mode==='all'){
+   if(!args.photoDir)throw Error('请先选择可见光照片目录');
+   if(!args.reportDir)throw Error('请先选择缺陷成果目录');
+   const extracted=await reportService.runExtractToExcel({photoRoot:args.photoDir,reportDir:args.reportDir,logFn:sendLog});
+   outXlsPath=extracted.outXlsPath;coordCount=extracted.count;reportAllowedPaths.add(outXlsPath);
+  }
+  if(mode==='report'||mode==='all'){
+   if(!args.reportDir)throw Error('请先选择缺陷成果目录');
+   reportResult=await reportService.generateReport({reportDir:args.reportDir,excelPath:outXlsPath||args.excelPath||'',logFn:sendLog,onProgress:p=>{if(win&&!win.isDestroyed())win.webContents.send('desktop:progress',{kind:'report-progress',...p});}});
+   reportAllowedPaths.add(reportResult.outDocxPath);
+  }
+  value={outXlsPath,coordCount,...(reportResult||{})};
+ }
+ else if(op==='report-open-path'){
+  const target=String(args.target||'');
+  if(!target||!reportAllowedPaths.has(target))throw Error('文件路径无效或未在本会话中生成');
+  if(args.revealOnly)shell.showItemInFolder(target);
+  else{const err=await shell.openPath(target);if(err)throw Error(err);}
+  value=true;
+ }
  else if(op==='diagnostics'){const result=await dialog.showSaveDialog(win,{title:'保存诊断信息',defaultPath:'巡检诊断.json',filters:[{name:'JSON',extensions:['json']}]});if(result.canceled)return {ok:true,value:false};const report={version:app.getVersion(),electron:process.versions.electron,platform:process.platform,arch:process.arch,time:new Date().toISOString(),details:args.details};await fs.writeFile(result.filePath,JSON.stringify(report,null,2));value=true;}
  else value=await service.call(op,args);
  return {ok:true,value};}catch(e){return {ok:false,error:normalizeError(e)};}});
@@ -36,7 +84,7 @@ app.whenReady().then(async()=>{
  win.on('closed',()=>{clearTimeout(saveTimer);clearTimeout(closeTimer);win=null;});
  const action=id=>()=>{win?.webContents.send('desktop:action',id);};
  Menu.setApplicationMenu(Menu.buildFromTemplate([
- {label:'文件',submenu:[{label:'打开图片文件夹…',accelerator:'CmdOrCtrl+O',click:action('open')},{label:'选择输出文件夹…',accelerator:'CmdOrCtrl+Shift+O',click:action('output')},{label:'在资源管理器中显示当前图片',accelerator:'CmdOrCtrl+Shift+E',click:action('reveal')},{type:'separator'},{label:'退出',accelerator:'Alt+F4',click:()=>win.close()}]},
+ {label:'文件',submenu:[{label:'打开图片文件夹…',accelerator:'CmdOrCtrl+O',click:action('open')},{label:'选择输出文件夹…',accelerator:'CmdOrCtrl+Shift+O',click:action('output')},{label:'在资源管理器中显示当前图片',accelerator:'CmdOrCtrl+Shift+E',click:action('reveal')},{label:'导出巡检报告…',click:action('export-report')},{type:'separator'},{label:'退出',accelerator:'Alt+F4',click:()=>win.close()}]},
  {label:'编辑',submenu:[{role:'undo',label:'撤销文字输入'},{role:'redo',label:'重做文字输入'},{type:'separator'},{role:'cut',label:'剪切'},{role:'copy',label:'复制'},{role:'paste',label:'粘贴'},{role:'selectAll',label:'全选'}]},
  {label:'视图',submenu:[{label:'搜索目录',accelerator:'CmdOrCtrl+F',click:action('search')},{label:'刷新目录',accelerator:'F5',click:action('refresh')},{label:'成果回收站',click:action('trash')},{label:'操作记录',click:action('history')},{label:'设置',accelerator:'CmdOrCtrl+,',click:action('settings')},{type:'separator'},{role:'zoomIn',label:'放大界面'},{role:'zoomOut',label:'缩小界面'},{role:'resetZoom',label:'恢复界面大小'},{role:'togglefullscreen',label:'全屏'}]},
  {label:'帮助',submenu:[{label:'使用说明',click:action('help')},{label:'导出诊断信息…',click:action('diagnostics')},{label:'关于',click:()=>dialog.showMessageBox(win,{type:'info',title:'巡检缺陷工具',message:'巡检缺陷工具',detail:'Windows 桌面版\n本地处理 · 原生目录 · 安全写入\n支持 Windows 10 / 11（64 位）'})}]}

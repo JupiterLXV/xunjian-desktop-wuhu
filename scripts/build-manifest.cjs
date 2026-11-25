@@ -1,7 +1,12 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),cp=require('node:child_process'),asar=require('@electron/asar');
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const archive='dist/win-unpacked/resources/app.asar';
-for(const name of asar.listPackage(archive))if(/(?:tests|node_modules)/i.test(name))throw Error('Unexpected packaged file '+name);
+const pkg=require('../package.json'),devNames=new Set(Object.keys(pkg.devDependencies||{}));
+for(const name of asar.listPackage(archive)){
+ if(/^tests(?:\/|\\)/i.test(name))throw Error('Unexpected packaged file '+name);
+ const m=name.match(/^node_modules[\\/](@[^\\/]+[\\/][^\\/]+|[^\\/]+)/);
+ if(m&&devNames.has(m[1]))throw Error('Unexpected devDependency packaged '+name);
+}
 for(const name of fs.readdirSync('app')){const p='app/'+name;if(!fs.statSync(p).isFile())continue;if(hash(asar.extractFile(archive,p))!==hash(fs.readFileSync(p)))throw Error('Packaged source mismatch: '+p);}
 const packaged=JSON.parse(asar.extractFile(archive,'package.json'));if(packaged.version!==require('../package.json').version)throw Error('Version mismatch');
 const artifacts=fs.readdirSync('dist').filter(n=>n==='Xunjian-Wuhu-Setup-'+packaged.version+'-x64.exe').map(n=>{const b=fs.readFileSync(path.join('dist',n));if(b.subarray(0,2).toString()!=='MZ'||b.subarray(b.readUInt32LE(60),b.readUInt32LE(60)+4).toString()!=='PE\0\0')throw Error('Invalid PE executable');return {name:n,size:b.length,sha256:hash(b)};});

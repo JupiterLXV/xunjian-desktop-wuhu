@@ -11,3 +11,16 @@
 #locationWarning { color:var(--warn); }
 .rule-note { display:block; font-size:10px; color:var(--muted); }
 @media(max-height:800px) { #smallPreview {height:110px;} }
+#desktopExportReport { white-space:nowrap; }
+.report-dialog { width:min(720px,92vw); }
+.report-form { display:grid; gap:10px; margin-top:10px; }
+.report-field { display:grid; grid-template-columns:112px minmax(0,1fr) auto; align-items:center; gap:8px; font-size:12px; }
+.report-field label { color:var(--muted); white-space:nowrap; }
+.report-field input { min-width:0; height:32px; padding:0 10px; background:var(--input-bg); color:var(--text); border:0.5px solid var(--btn-border); border-radius:6px; font:inherit; }
+.report-detected { font-size:12px; color:var(--text); padding:6px 0; overflow-wrap:anywhere; }
+.report-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; padding-top:12px; border-top:0.5px solid var(--panel-border); }
+.report-result { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin-top:12px; padding:10px 12px; background:var(--card-bg); border:0.5px solid var(--panel-border); border-radius:6px; font-size:12px; }
+.report-result[hidden] { display:none; }
+.report-result-path { flex:1 1 260px; min-width:0; overflow-wrap:anywhere; color:var(--text); }
+.report-result-btns { display:flex; gap:6px; flex-shrink:0; }
+.report-log { margin:12px 0 0; padding:10px 12px; min-height:140px; max-height:220px; overflow:auto; background:var(--viewer-bg); color:var(--text); border:0.5px solid var(--panel-border); border-radius:6px; font:12px/1.55 Consolas, "Microsoft YaHei", monospace; white-space:pre-wrap; word-break:break-word; }
