@@ -23,4 +23,4 @@
 .report-result[hidden] { display:none; }
 .report-result-path { flex:1 1 260px; min-width:0; overflow-wrap:anywhere; color:var(--text); }
 .report-result-btns { display:flex; gap:6px; flex-shrink:0; }
-.report-log { margin:12px 0 0; padding:10px 12px; min-height:140px; max-height:220px; overflow:auto; background:var(--viewer-bg); color:var(--text); border:0.5px solid var(--panel-border); border-radius:6px; font:12px/1.55 Consolas, "Microsoft YaHei", monospace; white-space:pre-wrap; word-break:break-word; }
+.report-log { margin:12px 0 0; padding:10px 12px; min-height:140px; max-height:220px; overflow:auto; background:var(--input-bg); color:var(--text); border:0.5px solid var(--panel-border); border-radius:6px; font:12px/1.55 Consolas, "Microsoft YaHei", monospace; white-space:pre-wrap; word-break:break-word; }

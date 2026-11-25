@@ -48,6 +48,12 @@ test('export report button opens dialog, auto-detects line name, and exports Wor
     await page.locator('.report-actions button', { hasText: '仅导出 Word 报告' }).click();
     await expect(page.locator('.report-result')).toBeVisible();
     await expect(page.locator('.report-result-path')).toContainText('10kV测试线无人机技术监督巡视分析报告.docx');
+    const logColors = await page.locator('.report-log').evaluate(el => {
+      const s = getComputedStyle(el);
+      return { bg: s.backgroundColor, color: s.color };
+    });
+    expect(logColors.bg).not.toBe(logColors.color);
+    expect(logColors.bg).toBe('rgb(255, 255, 255)');
     const docxStat = await fs.stat(path.join(outDir, '10kV测试线无人机技术监督巡视分析报告.docx'));
     expect(docxStat.size).toBeGreaterThan(3000);
   } finally {
