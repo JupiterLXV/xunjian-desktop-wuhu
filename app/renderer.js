@@ -106,7 +106,7 @@
   // 一旦用户手动调整，后续保存、导出/导入模板均以用户选择为准。
   function isCriticalDefectTag(tag) {
     if (!tag) return false;
-    var rule62=WuhuCore.findRule(WuhuRules,String(tag).trim());
+    var rule62=currentRule62(String(tag).trim());
     return rule62?rule62.severity==='危急':criticalDefects.has(String(tag).trim());
   }
 
@@ -115,11 +115,21 @@
     sideDictVersion++;
   }
 
-  function loadCriticalDefects(){criticalDefects=new Set(CRITICAL_DEFECTS);}
+  function loadCriticalDefects(){
+    var saved;try{saved=JSON.parse(localStorage.getItem(KEY_CRITICAL_DEFECTS)||'null');}catch(e){}
+    var tags=new Set(Object.values(defectDict).flat());
+    criticalDefects=new Set((Array.isArray(saved)?saved:CRITICAL_DEFECTS).filter(function(t){return tags.has(t);}));
+    sideDictVersion++;
+  }
+  var activeRuleCache62,activeRuleVersion62=-1;
+  function currentRule62(text){
+    if(activeRuleVersion62!==sideDictVersion){activeRuleCache62=WuhuCore.templateRules(defectDict,criticalDefects,WuhuRules);activeRuleVersion62=sideDictVersion;}
+    return activeRuleCache62.get(text)||null;
+  }
 
   function toggleCriticalDefect(tag) {
     var t = String(tag || '').trim();
-    if (WuhuCore.findRule(WuhuRules,t)){toast('芜湖规则等级由配置确定，请选择对应等级的完整规则');return;}
+    if (currentRule62(t)?.explicitSeverity){toast('缺陷等级由当前模板确定，请选择对应等级的完整规则');return;}
     if (!t) return;
     if (criticalDefects.has(t)) {
       criticalDefects.delete(t);
@@ -2299,7 +2309,7 @@
   }
   function newNamePreview(photoId48){
     var id=photoId48||curName();if(!id)return {base:'',ext:'.jpg',appended:[],full:''};
-    var m=getMeta(id),location=locationFor62(id),rule=WuhuCore.findRule(WuhuRules,m.appended[0]);
+    var m=getMeta(id),location=locationFor62(id),rule=currentRule62(m.appended[0]);
     var base=[location.line||'[待确认线路]',location.branch||'[待确认主支线]',location.pole||'[待确认杆号]'].join('-');
     var full=base+(rule?'-'+[rule.component,rule.description,rule.severity].join('-'):'')+'.jpg';
     return {base:base,ext:'.jpg',appended:m.appended.slice(),full:full,location:Object.assign({},location),rule:rule};
@@ -2328,8 +2338,8 @@
 
   function appendDefect(text){
     if(editLocked48()||!curName())return;
-    var rule=WuhuCore.findRule(WuhuRules,text);
-    if(!rule){toast('请选择芜湖配置中的完整缺陷规则');return;}
+    var rule=currentRule62(text);
+    if(!rule){toast('请选择当前模板中的完整缺陷规则');return;}
     var m=getMeta(curName());
     if(m.appended.length===1&&m.appended[0]===text)return;
     m.history.push({type:'rule',previous:m.appended.slice()});
@@ -2355,13 +2365,9 @@
     sideDictVersion++;
   }
   function loadDefectDict(){
-    var canonical=WuhuCore.dictionary(WuhuRules),saved;
-    try{saved=JSON.parse(localStorage.getItem(KEY_DEFECT_DICT)||'null');}catch(e){}
-    if(saved&&typeof saved==='object')Object.keys(canonical).forEach(function(key){
-      var old=Array.isArray(saved[key])?saved[key]:[];
-      canonical[key]=old.filter(function(t,i){return canonical[key].includes(t)&&old.indexOf(t)===i;}).concat(canonical[key].filter(function(t){return !old.includes(t);}));
-    });
-    defectDict=canonical;
+    try{var raw=localStorage.getItem(KEY_DEFECT_DICT);if(raw!==null)defectDict=WuhuCore.templateDictionary(JSON.parse(raw));}
+    catch(e){console.warn('缺陷模板读取失败',e);toast('已保存模板无效，暂使用默认分类：'+e.message,6000);}
+    sideDictVersion++;
   }
 
 
@@ -2548,7 +2554,7 @@
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]; }); }
 
   function defItemHtml(t,cat){
-    var rule=WuhuCore.findRule(WuhuRules,t);
+    var rule=currentRule62(t);
     if(!rule)return '';
     var selected=curName()&&getMeta(curName()).appended[0]===t;
     return '<div class="def-item '+(rule.severity==='危急'?'is-critical-item':'')+'" draggable="true" data-category="'+esc(cat)+'" data-text="'+esc(t)+'" title="点击选择此完整规则'+(rule.note?'；'+esc(rule.note):'')+'"'+(selected?' style="outline:1px solid var(--accent)"':'')+'><span class="t">'+esc(rule.description)+' · '+esc(rule.severity)+(rule.note?'<small class="rule-note">'+esc(rule.note)+'</small>':'')+'</span></div>';
@@ -2651,7 +2657,7 @@
         pendingImportData = {
           fileName: file.name,
           exportTime: data.exportTime || '未知',
-          defectDict: data.defectDict || {},
+          defectDict: WuhuCore.templateDictionary(data.defectDict || {}),
           locationAdjacency: data.locationAdjacency || {},
           candidatePool: Array.isArray(data.candidatePool) ? data.candidatePool : null,
           criticalDefects: Array.isArray(data.criticalDefects) ? data.criticalDefects : null
@@ -2685,7 +2691,8 @@
 
   btnDoOverwriteImport.addEventListener('click', function () {
     if (!pendingImportData) return;
-    defectDict = JSON.parse(JSON.stringify(pendingImportData.defectDict));
+    defectDict = WuhuCore.templateDictionary(pendingImportData.defectDict);
+    hiddenDefects={};saveHidden();
     locationAdjacency = JSON.parse(JSON.stringify(pendingImportData.locationAdjacency));
     if (Array.isArray(pendingImportData.criticalDefects)) {
       criticalDefects = new Set(pendingImportData.criticalDefects.map(function (x) { return String(x).trim(); }).filter(Boolean));
@@ -2726,6 +2733,7 @@
     var newCats = 0, newTags = 0, newRules = 0, newPool = 0;
 
     var impDict = pendingImportData.defectDict;
+    Object.values(impDict).flat().forEach(function(t){delete hiddenDefects[t];});saveHidden();
     var importedCriticalSet = Array.isArray(pendingImportData.criticalDefects) ? new Set(pendingImportData.criticalDefects.map(function (x) { return String(x).trim(); })) : null;
     for (var cat in impDict) {
       if (!defectDict[cat]) {
@@ -5309,7 +5317,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   }
   function makeArtifact(f,dir,kind,blob,tag,frozenName46){
     var nv=frozenName46||newNamePreview(f.id);
-    if(!nv.rule)throw new Error('请选择完整的芜湖缺陷规则');
+    if(!nv.rule)throw new Error('请选择当前模板中的完整缺陷规则');
     return {photoId:f.id,projectId:projectId,relPath:f.relPath,dir:dir,kind:kind,path:WuhuCore.filename(nv.location,nv.rule),tag:tag,blob:blob};
   }
 
@@ -5399,9 +5407,9 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
       if(!await ensureOutputDir())return null;if(outputScanTask46)await outputScanTask46;
       if(OUTPUT_SCAN_DIRS.includes(output.mainHandle.name))throw new Error('请选择大图、小图、原图的上一级成果目录');
       var m=getMeta(id);newNamePreview(id);
-      if(!WuhuCore.findRule(WuhuRules,m.appended[0])||m.appended.length!==1)throw new Error('请选择一条完整的芜湖缺陷规则');
+      if(!currentRule62(m.appended[0])||m.appended.length!==1)throw new Error('请选择当前模板中的一条完整缺陷规则');
       var crop62=currentCrop62();if(!crop62)throw new Error('请先绘制至少一个有效红框，再保存缺陷大小图');
-      WuhuCore.filename(locationFor62(id),WuhuCore.findRule(WuhuRules,m.appended[0]));
+      WuhuCore.filename(locationFor62(id),currentRule62(m.appended[0]));
       var clean62=f.file||await f.handle.getFile(),header62=new Uint8Array(await clean62.slice(0,3).arrayBuffer());
       if(header62[0]!==255||header62[1]!==216||header62[2]!==255)throw new Error('原图必须是 JPG/JPEG，才能不重新编码并保存三份同名 JPG。其他格式仍可浏览。');
       return {id:id,file:f,name:f.name,project:projectId,root:output.mainHandle,meta:m,manual:false,locationManual:!!m.location62,crop:crop62,cropOptions:Object.assign({},m.crop62),natural:Object.assign({},state.natural),
@@ -5412,7 +5420,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   }
 
   async function saveBothFolders() { return savePhoto(false); }
-  async function saveCriticalOnly(){var rule=WuhuCore.findRule(WuhuRules,getMeta(curName()).appended[0]);if(!rule||rule.severity!=='危急'){toast('请先选择等级为危急的芜湖规则');return false;}return savePhoto(false);}
+  async function saveCriticalOnly(){var rule=currentRule62(getMeta(curName()).appended[0]);if(!rule||rule.severity!=='危急'){toast('请先选择等级为危急的缺陷规则');return false;}return savePhoto(false);}
   async function createOriginalPhotosFromBoxed(){
     return withIO(async function(){
       if(!await ensureOutputDir())return;

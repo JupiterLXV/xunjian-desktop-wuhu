@@ -13,6 +13,31 @@
     for (const r of rules) (result[r.component] ||= []).push(tag(r));
     return result;
   }
+  function templateDictionary(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('缺陷分类必须是分类到标签数组的对象');
+    const result = Object.create(null);
+    for (const [category, items] of Object.entries(value)) {
+      if (!category.trim() || !Array.isArray(items) || items.some(t => typeof t !== 'string' || !t.trim()))
+        throw new Error('分类【' + category + '】必须包含非空文字标签数组');
+      result[category] = [...new Set(items)];
+    }
+    return result;
+  }
+  // The active dictionary supplies membership and fields; built-in rules supply optional notes only.
+  function templateRules(dict, critical = new Set(), notes = []) {
+    const annotations = new Map(notes.map(r => [tag(r), r.note]));
+    const rules = new Map();
+    for (const [category, items] of Object.entries(dict)) for (const text of items) {
+      const body = text.replace(/^_/, ''), split = body.indexOf('-');
+      const prefix = body.startsWith(category + '-') ? category : split > 0 ? body.slice(0, split) : category;
+      const rest = body.startsWith(prefix + '-') ? body.slice(prefix.length + 1) : body;
+      const parts = /^(.*)-(一般|严重|危急)$/.exec(rest);
+      rules.set(text, {text, component:prefix, description:parts ? parts[1] : rest,
+        severity:parts ? parts[2] : critical.has(text) ? '危急' : '一般', explicitSeverity:!!parts,
+        note:annotations.get(text) || ''});
+    }
+    return rules;
+  }
   function parseLocation(filePath, rootPath) {
     // When a picker is opened at a line/branch/pole, its full granted path supplies ancestors.
     const split = p => String(p || '').replace(/\\/g, '/').split('/').filter(Boolean);
@@ -67,5 +92,5 @@
     }
     return Object.assign(rect,{target:target.index});
   }
-  return {OUTPUT_DIRS,LEGACY_DIRS,tag,findRule,dictionary,parseLocation,filename,validBoxes,crop};
+  return {OUTPUT_DIRS,LEGACY_DIRS,tag,findRule,dictionary,templateDictionary,templateRules,parseLocation,filename,validBoxes,crop};
 });

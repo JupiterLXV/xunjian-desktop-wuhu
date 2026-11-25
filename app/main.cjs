@@ -1,5 +1,5 @@
 'use strict';
-const {app,BrowserWindow,dialog,ipcMain,Menu,protocol,net,shell,screen}=require('electron');
+const {app,BrowserWindow,dialog,ipcMain,Menu,protocol,net,shell,screen,nativeImage}=require('electron');
 const fs=require('node:fs/promises'),path=require('node:path'),{pathToFileURL}=require('node:url');
 const {FileService,normalizeError}=require('./fs-service.cjs');
 const reportService=require('./report-service.cjs');
@@ -72,7 +72,11 @@ app.whenReady().then(async()=>{
  ipcMain.on('desktop:close-ready',async(event,result)=>{if(event.sender!==win?.webContents||!closing)return;clearTimeout(closeTimer);if(result?.ok){allowClose=true;win.close();return;}closing=false;win.webContents.send('desktop:action','close-cancelled');await dialog.showMessageBox(win,{type:'warning',title:'还有内容未保存',message:result?.message||'请先完成或重试保存任务，再关闭窗口。',buttons:['返回检查']});});
  let saved={};try{saved=JSON.parse(await fs.readFile(statePath,'utf8'));}catch{}
  const area=screen.getPrimaryDisplay().workArea;const bounds={width:Math.min(saved.width||1440,area.width),height:Math.min(saved.height||960,area.height)};if(Number.isFinite(saved.x)&&Number.isFinite(saved.y)&&screen.getAllDisplays().some(d=>saved.x>=d.workArea.x&&saved.y>=d.workArea.y&&saved.x<d.workArea.x+d.workArea.width-100&&saved.y<d.workArea.y+d.workArea.height-100)){bounds.x=saved.x;bounds.y=saved.y;}
- win=new BrowserWindow({...bounds,minWidth:1000,minHeight:680,show:false,backgroundColor:'#f7f7f6',title:'巡检缺陷工具',icon:path.join(__dirname,process.platform==='win32'?'icon.ico':'icon.png'),webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,backgroundThrottling:false}});
+ // Decode the original PNG explicitly instead of relying on Windows ICO path resolution.
+ const windowIcon=nativeImage.createFromBuffer(await fs.readFile(path.join(__dirname,'icon.png')));
+ if(windowIcon.isEmpty())throw Error('原版窗口图标读取失败');
+ win=new BrowserWindow({...bounds,minWidth:1000,minHeight:680,show:false,backgroundColor:'#f7f7f6',title:'巡检缺陷工具',icon:windowIcon,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true,webSecurity:true,backgroundThrottling:false}});
+ win.setIcon(windowIcon);
  if(process.platform==='win32')win.setAppDetails({appId:'local.xunjian.desktop',appIconPath:process.execPath,appIconIndex:0,relaunchCommand:'\"'+process.execPath+'\"',relaunchDisplayName:'巡检缺陷工具'});
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',(e,url)=>{if(url!==entry)e.preventDefault();});
  win.webContents.session.setPermissionRequestHandler((_webContents,_permission,callback)=>callback(false));
