@@ -92,7 +92,7 @@ function Record-Stage([string]$Label,[string]$Explanation){
  Start-Sleep -Milliseconds 2000
  if(![XunjianTaskbarProbe]::IsWindow($window)){throw 'Application window closed during test'}
  $row=[ordered]@{label=$Label;properties=[XunjianTaskbarProbe]::Read($window);icons=@(Snapshot-Icons $Label);taskbars=@(Snapshot-Taskbars $Label);userObserved='not-executed'}
- $script:report.stages+= [pscustomobject]$row
+ $report.stages+= [pscustomobject]$row
  if($automatic){return}
  $answer=[Windows.Forms.MessageBox]::Show("$Explanation`r`n`r`n请查看巡检程序此时的任务栏图标：`r`n是 = 原版 Logo 正常；否 = 仍是白纸；取消 = 停止测试。",'巡检任务栏图标对照',[Windows.Forms.MessageBoxButtons]::YesNoCancel,[Windows.Forms.MessageBoxIcon]::Question)
  $report.stages[-1].userObserved=$answer.ToString()
