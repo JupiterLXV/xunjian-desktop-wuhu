@@ -1,0 +1,33 @@
+name: Taskbar desktop comparison
+on:
+  push:
+    branches: [taskbar-icon-diagnosis]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - uses: actions/download-artifact@v4
+        with:
+          name: Xunjian-Wuhu-Windows-x64
+          run-id: 45569159730
+          github-token: ${{ github.token }}
+          path: baseline-installer
+      - name: Compare actual Explorer taskbar and window relaunch properties
+        run: node scripts/diagnostics/taskbar-compare.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Taskbar-desktop-proof
+          path: taskbar-proof/
+          if-no-files-found: warn
