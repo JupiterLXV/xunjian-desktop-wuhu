@@ -7,7 +7,7 @@
       window.WuhuRules = result.value;
     } else window.WuhuRules = await (await fetch('wuhu-rules.json')).json();
     if (!Array.isArray(WuhuRules) || !WuhuRules.length) throw new Error('默认缺陷规则配置无效');
-    for (const src of ['renderer.js', 'desktop-ui.js', 'report-ui.js']) await new Promise((resolve, reject) => {
+    for (const src of ['renderer.js', 'desktop-ui.js']) await new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = src; script.onload = resolve; script.onerror = () => reject(new Error('无法加载 ' + src));
       document.body.appendChild(script);

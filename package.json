@@ -1,6 +1,6 @@
 {
   "name": "xunjian-desktop",
-  "version": "50.4.5",
+  "version": "50.4.6",
   "description": "巡检缺陷命名分类工具桌面版",
   "author": "Xunjian Desktop",
   "private": true,
@@ -26,7 +26,7 @@
   },
   "build": {
     "appId": "local.xunjian.desktop",
-    "productName": "巡检缺陷工具",
+    "productName": "巡检缺陷工具-芜湖",
     "asar": true,
     "directories": {
       "output": "dist",
@@ -55,7 +55,7 @@
       "perMachine": false,
       "deleteAppDataOnUninstall": false,
       "createDesktopShortcut": true,
-      "shortcutName": "巡检缺陷工具",
+      "shortcutName": "巡检缺陷工具-芜湖",
       "installerIcon": "app/icon.ico",
       "uninstallerIcon": "app/icon.ico",
       "include": "build/installer.nsh",

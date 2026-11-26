@@ -1,11 +1,12 @@
 name: Windows installer
 on:
   push:
-    branches: [main]
+    branches: [main, ui-simplify-5046]
     paths-ignore: ['docs/**', 'README.md', 'CHANGELOG.md']
   workflow_dispatch:
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: windows-${{ github.ref }}
   cancel-in-progress: true
@@ -44,7 +45,16 @@ jobs:
       - name: Verify packaged application, original logo and checksums
         run: |
           node scripts/build-manifest.cjs
-          node scripts/verify-icons.cjs "dist/win-unpacked/巡检缺陷工具.exe" "dist/Xunjian-Wuhu-Setup-50.4.5-x64.exe"
+          node scripts/verify-icons.cjs "dist/win-unpacked/巡检缺陷工具-芜湖.exe" "dist/Xunjian-Wuhu-Setup-50.4.6-x64.exe"
+      - name: Download previous installer for profile-preservation upgrade test
+        uses: actions/download-artifact@v4
+        with:
+          name: Xunjian-Wuhu-Windows-x64
+          run-id: 45730576420
+          github-token: ${{ github.token }}
+          path: upgrade-baseline
+      - name: Verify application rename preserves the existing default profile
+        run: node scripts/test-rename-upgrade.cjs
       - name: Install and start the packaged program on Windows
         run: npm run test:installed
       - name: Upload installer and checksums

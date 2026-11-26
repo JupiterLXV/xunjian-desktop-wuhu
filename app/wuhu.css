@@ -31,3 +31,14 @@
 #sideScroll .pos-toggle43:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:3px; }
 #sideScroll .category-arrow43 { display:inline-block; flex-shrink:0; font-size:17px; line-height:1; }
 #sideScroll .category-expanded43 .category-arrow43 { transform:rotate(90deg); }
+
+/* The compact rail keeps the tower progress visible in both toolbar states. */
+#toolbarShell46 { flex:0 0 auto;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;background:var(--bar-bg);color:var(--text);border-bottom:1px solid var(--bar-border); }
+#toolbarShell46 #bar { min-width:0;border-bottom:0; }
+#toolbarShell46 #bar[hidden],#toolbarCompact46[hidden] { display:none!important; }
+#toolbarCompact46 { display:flex;align-items:center;gap:9px;min-width:0;height:43px;padding:0 14px;font-size:13px;font-weight:650; }
+#toolbarCompact46 span { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+#toolbarShell46 .toolbar-toggle46 { align-self:start;margin:12px 12px 0 0;height:30px; }
+#toolbarShell46.is-collapsed { align-items:center; }
+#toolbarShell46.is-collapsed .toolbar-toggle46 { margin-top:0;align-self:center; }
+#toolbarShell46 > .work-progress48 { grid-column:1/-1;display:block;width:100%;margin:0; }

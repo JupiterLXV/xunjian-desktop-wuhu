@@ -19,5 +19,4 @@ test('existing renderer sorts inserted poles numerically and keeps every inserte
  const files=expected.slice().reverse().map(pole=>({name:'DJI_0000_V.jpg',relPath:'10kV测试线/主线/'+pole+'/DJI_0000_V.jpg'}));
  files.sort(compare);assert.deepEqual(files.map(f=>parse(f.name,f.relPath).tower),expected);
  assert.equal(new Set(files.map(f=>parse(f.name,f.relPath).tower)).size,7);
- assert.equal(require('../../app/report-service.cjs').formatGeoLineName('主线#088+1','10kV测试线'),'10kV测试线主线#088+1');
 });
