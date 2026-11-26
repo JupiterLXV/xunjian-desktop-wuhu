@@ -44,7 +44,8 @@
     const parts = /^(?:[A-Za-z]:[\\/]|[\\/])/.test(String(filePath||'')) ? split(filePath) : split(rootPath).concat(split(filePath));
     parts.pop(); // Camera filenames never supply a field.
     const pole = parts.at(-1) || '', branch = parts.at(-2) || '', line = parts.at(-3) || '';
-    const valid = /^#\d+(?:[-_~]\d+|[A-Za-z])?(?:号?[杆塔基])?$/.test(pole) &&
+    // Inserted poles are identifiers, not arithmetic: retain the folder's exact + suffix and zero padding.
+    const valid = /^(?:#\d+(?:[-_~+]\d+|[A-Za-z])?|\d+\+\d+)(?:号?[杆塔基])?$/.test(pole) &&
       !!branch && !/^[A-Za-z]:$/.test(branch) && /(?:线|线路)(?:[（(].*[）)])?$/.test(line) &&
       !/^[A-Za-z]:$/.test(line);
     return { line: valid ? line : '', branch: valid ? branch : '', pole: valid ? pole : '', valid };

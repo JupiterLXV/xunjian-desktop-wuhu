@@ -19,7 +19,7 @@ const {_electron}=require('@playwright/test');
   const hwnd=await app.evaluate(({BrowserWindow})=>{const b=BrowserWindow.getAllWindows()[0].getNativeWindowHandle();return (b.length===8?b.readBigUInt64LE(0):BigInt(b.readUInt32LE(0))).toString();});
   const check=await promisify(execFile)('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.resolve('scripts/verify-window-icon.ps1'),'-WindowHandle',hwnd,'-OriginalPng',path.resolve('app/icon.png')],{timeout:30000});console.log(check.stdout);
   await new Promise(r=>setTimeout(r,2000));
-  const capture=await promisify(execFile)('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',desktopScript,'-Mode','Capture','-WindowHandle',hwnd,'-Label','release-50.4.4','-OutputDirectory',proofDir],{timeout:60000,maxBuffer:4*1024*1024});
+  const capture=await promisify(execFile)('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',desktopScript,'-Mode','Capture','-WindowHandle',hwnd,'-Label','release-50.4.5','-OutputDirectory',proofDir],{timeout:60000,maxBuffer:4*1024*1024});
   const taskbar=JSON.parse(capture.stdout.replace(/^\uFEFF/,''));
   for(const key of ['RelaunchIconResource','RelaunchCommand','RelaunchDisplayNameResource'])if(taskbar.properties[key]!==null)throw Error('Unexpected window relaunch override: '+key);
   await fs.writeFile(path.join(proofDir,'release.json'),JSON.stringify(taskbar,null,2));console.log('TASKBAR_RELEASE_PROOF '+JSON.stringify(taskbar));
