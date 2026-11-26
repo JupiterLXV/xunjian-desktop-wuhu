@@ -53,7 +53,10 @@ test('skip infrared toggle hides trailing-T photos from directory tree and image
   await page.keyboard.press('d');
   await page.waitForFunction(()=>__test62.state.index===1&&!__test62.state.navBusy);
   expect(await page.evaluate(()=>__test62.state.files[__test62.state.index].name)).toBe('DJI_20260724131310_0003_V.jpg');
-  await expect(page.locator('#btnNext')).toBeDisabled();
+  await expect(page.locator('#btnNext')).toHaveCount(0);
+  await page.keyboard.press('d');
+  await expect.poll(()=>page.evaluate(()=>__test62.state.index)).toBe(1);
+  await expect(page.locator('#counter')).toHaveText('2 / 2');
 
   // Turn off skip infrared: _T photos and #002 tower become visible and navigable
   await btn.click();
