@@ -7,6 +7,7 @@ protocol.registerSchemesAsPrivileged([{scheme:'xunjian-file',privileges:{standar
 app.setName('巡检缺陷工具');
 const previousUserData=app.getPath('userData');
 app.setName('巡检缺陷工具-芜湖');
+require('node:fs').mkdirSync(previousUserData,{recursive:true});
 app.setPath('userData',previousUserData);
 app.setAppUserModelId('local.xunjian.desktop');
 let win,service,allowClose=false,closing=false,statePath,closeTimer;
