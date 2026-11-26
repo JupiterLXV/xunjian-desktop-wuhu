@@ -6209,7 +6209,7 @@ else if (((e.key.toLowerCase() === customSaveKey) && !isInput && !hasActiveModal
   (function initToolbar46(){
     var shell=$('toolbarShell46'),bar=$('bar'),compact=$('toolbarCompact46'),toggle=$('btnToolbarToggle46'),key='xunjian_toolbar_collapsed_v1';
     function apply(collapsed,remember){
-      shell.classList.toggle('is-collapsed',collapsed);bar.hidden=collapsed;bar.inert=collapsed;compact.hidden=!collapsed;if(collapsed)$('queuePanel48').open=false;
+      shell.classList.toggle('is-collapsed',collapsed);bar.hidden=collapsed;compact.hidden=!collapsed;if(collapsed)$('queuePanel48').open=false;
       toggle.setAttribute('aria-expanded',String(!collapsed));toggle.textContent=collapsed?'展开工具栏 ⌄':'收起工具栏 ⌃';toggle.title=collapsed?'展开顶部工具栏':'收起顶部工具栏';
       if(remember)try{localStorage.setItem(key,collapsed?'1':'0');}catch(e){}
       requestAnimationFrame(function(){invalidateCanvasRect();recomputeViewerStage();VirtualTree48.render(true);});
